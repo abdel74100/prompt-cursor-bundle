@@ -1,6 +1,7 @@
 {
 	"name": "@abdel-akh/prompt-cursor-bundle",
-	"version": "1.2.0",
+	"version": "1.2.2",
+	"author": "Abderrahim Akh",
 	"description": "Prompt Cursor Bundle - Professional project structuring tool for Cursor AI",
 	"main": "src/index.js",
 	"bin": {
@@ -24,16 +25,15 @@
 		"workflow",
 		"project-generator"
 	],
-	"author": "PromptCore Team",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/abdel-akh/prompt-cursor-bundle.git"
+		"url": "https://github.com/abdel74100/prompt-cursor-bundle.git"
 	},
 	"bugs": {
-		"url": "https://github.com/abdel-akh/prompt-cursor-bundle/issues"
+		"url": "https://github.com/abdel74100/prompt-cursor-bundle/issues"
 	},
-	"homepage": "https://github.com/aakroh/prompt-cursor-bundle#readme",
+	"homepage": "https://github.com/abdel74100/prompt-cursor-bundle#readme",
 	"publishConfig": {
 		"access": "public"
 	},
