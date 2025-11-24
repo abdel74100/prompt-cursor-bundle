@@ -4,7 +4,7 @@
 > 
 > Transformez votre idée en projet structuré en 2 minutes avec une seule conversation Cursor !
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/aakroh/prompt-cursor-bundle)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@aakroh/prompt-cursor-bundle.svg)](https://www.npmjs.com/package/@aakroh/prompt-cursor-bundle)
@@ -162,5 +162,5 @@ MIT © [Your Name]
 </p>
 
 <p align="center">
-  <a href="https://github.com/prompt-cursor/bundle">⭐ Star ce projet sur GitHub</a>
+  <a href="https://github.com/abdel74100/prompt-cursor-bundle">⭐ Star ce projet sur GitHub</a>
 </p>
