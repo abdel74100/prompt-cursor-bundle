@@ -1,7 +1,7 @@
 {
 	"name": "@abdel-akh/prompt-cursor-bundle",
-	"version": "1.2.1",
-	"author": "Abdelhakim Ak",
+	"version": "1.2.2",
+	"author": "Abdelhakim Akh",
 	"description": "Prompt Cursor Bundle - Professional project structuring tool for Cursor AI",
 	"main": "src/index.js",
 	"bin": {
@@ -25,7 +25,6 @@
 		"workflow",
 		"project-generator"
 	],
-	"author": "PromptCore Team",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
