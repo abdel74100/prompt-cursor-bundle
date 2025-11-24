@@ -1,0 +1,166 @@
+# 🚀 Prompt Cursor Bundle
+
+> **Le bundle professionnel de structuration de projets pour Cursor AI** ⚡
+> 
+> Transformez votre idée en projet structuré en 2 minutes avec une seule conversation Cursor !
+
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/aakroh/prompt-cursor-bundle)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org)
+[![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@aakroh/prompt-cursor-bundle.svg)](https://www.npmjs.com/package/@aakroh/prompt-cursor-bundle)
+
+---
+
+## ✨ Qu'est-ce que Prompt Cursor Bundle ?
+
+Un outil CLI révolutionnaire qui :
+- 🎯 **Génère UN prompt intelligent** qui crée TOUS vos fichiers projet
+- 🤖 **Guide Cursor AI** pour produire une documentation complète et cohérente
+- 📊 **Parse automatiquement** vos plans pour créer un workflow de développement
+- 🔍 **Track votre progression** avec un dashboard intelligent
+- ⚙️ **Vérifie la compatibilité** des versions de packages (évite les erreurs)
+- ✅ **Met à jour automatiquement** votre code-run.md quand vous complétez une étape
+
+**Résultat :** De l'idée au projet structuré en **2 commandes** !
+
+---
+
+## 🎬 Démo Rapide - En 3 Commandes
+
+```bash
+# 1. Générer le prompt intelligent (avec versions compatibles)
+prompt-cursor generate -i idea.md -o ./mon-projet
+# ou avec l'alias court
+pcb gen -i idea.md -o ./mon-projet
+
+# 2. [Copier le prompt dans Cursor AI ou Autre AI cli ide]
+#    Sauvegarder les 4 fichiers dans .prompt-cursor/docs/
+
+# 3. Générer le workflow de développement
+prompt-cursor build
+
+# 4. Suivre et marquer la progression
+prompt-cursor complete
+
+# C'est tout ! Projet prêt ! 🎉
+```
+
+---
+
+## 📦 Installation
+
+```bash
+npm install -g @aakroh/prompt-cursor-bundle
+```
+
+---
+
+## 🚦 Quick Start
+
+```bash
+# Créer idea.md
+echo "Todo app avec React + TailwindCSS" > idea.md
+
+# Générer
+prompt-cursor generate -i idea.md -o ./projet
+
+# [Copier prompt → Cursor AI → Sauvegarder dans .prompt-cursor/docs/]
+
+# Builder
+cd ./projet && prompt-cursor build
+
+# ✅ Suivre code-run.md
+```
+
+---
+
+## 📖 Commandes
+
+| Commande | Alias | Description |
+|----------|-------|-------------|
+| `prompt-cursor generate` | `pcb gen` | Génère prompt intelligent + versions compatibles |
+| `prompt-cursor build` | `pcb build` | Parse et génère workflow |
+| `prompt-cursor complete` | `pcb done` | Marque étape terminée |
+| `prompt-cursor context` | `pcb ctx` | Affiche dashboard |
+| `prompt-cursor clean` | - | Nettoie .prompt-cursor/ |
+
+---
+
+### Structure de Projet
+
+```
+mon-projet/
+├── .prompt-cursor/                  # 📦 Dossier dédié (caché)
+│   ├── prompts/                  # Prompts générés
+│   │   ├── prompt-generate.md
+│   │   └── step[1-4]-prompt.md
+│   ├── docs/                     # Documentation Cursor
+│   │   ├── project-request.md
+│   │   ├── cursor-rules.md
+│   │   ├── spec.md
+│   │   └── implementation-plan.md
+│   ├── workflow/                 # Workflow de développement
+│   │   ├── code-run.md
+│   │   └── Instructions/
+│   └── .prompt-cursor-context.json
+├── .cursorrules                  # Seul fichier à la racine
+└── src/                          # Votre code source
+```
+
+---
+
+## ⚙️ Versions Compatibles Automatiques
+
+Évite les erreurs de compatibilité (TailwindCSS v4, PostCSS, etc.) grâce à la détection automatique du stack et injection des versions testées.
+
+---
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues !
+
+1. Fork le projet
+2. Créez votre branche (`git checkout -b feature/AmazingFeature`)
+3. Committez vos changements (`git commit -m 'Add AmazingFeature'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
+
+---
+
+## 📚 Documentation
+
+- 📖 **[GUIDE.md](./GUIDE.md)** - Guide complet avec schémas et exemples
+- 📖 **[example-idea.md](./example-idea.md)** - Exemple de fichier idée
+
+---
+
+## 🐛 Troubleshooting
+
+### Problème : "Command not found"
+```bash
+npm link  # Dans le dossier du CLI
+```
+
+### Problème : "No response files found"
+Assurez-vous d'avoir sauvegardé les fichiers générés par Cursor avant de lancer `build`.
+
+### Problème : "0 steps in plan"
+Vérifiez que votre `implementation-plan.md` suit le format attendu avec `- [ ] Step X:`.
+
+---
+
+---
+
+## 📄 License
+
+MIT © [Your Name]
+
+---
+
+<p align="center">
+  Fait avec ❤️ pour les développeurs qui veulent aller vite
+</p>
+
+<p align="center">
+  <a href="https://github.com/prompt-cursor/bundle">⭐ Star ce projet sur GitHub</a>
+</p>

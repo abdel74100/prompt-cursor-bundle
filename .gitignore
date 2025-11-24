@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+test-*/
+**/test-*.js
+*.test.js
+*.spec.js
+
+# Build
+dist/
+build/
+
+# Exemples et fichiers de développement
+exemple-*.md
+example-*.md
+MIGRATION-*.md
+FINAL-*.md
+TEST-*.md
+*-SUCCESS.md
+WHAT-WAS-*.md
+README-PACKAGIST.md
+
+# Scripts temporaires
+update-*.js
+migrate-*.sh
+*.tmp
+tmp/
+
+# Anciens contextes
+.cli-akh-cursor-context.json
+
+# Dossiers de test
+/test-*
+/Desktop/

@@ -1,0 +1,48 @@
+{
+	"name": "@abdel-akh/prompt-cursor-bundle",
+	"version": "1.2.0",
+	"description": "Prompt Cursor Bundle - Professional project structuring tool for Cursor AI",
+	"main": "src/index.js",
+	"bin": {
+		"prompt-cursor": "./bin/cli.js",
+		"pcb": "./bin/cli.js"
+	},
+	"scripts": {
+		"start": "node bin/cli.js",
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"prepublishOnly": "node scripts/prepublish.js",
+		"version": "npm run prepublishOnly && git add -A",
+		"postversion": "git push && git push --tags"
+	},
+	"keywords": [
+		"promptcore",
+		"bundle",
+		"cursor",
+		"ai",
+		"prompts",
+		"development",
+		"workflow",
+		"project-generator"
+	],
+	"author": "PromptCore Team",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/abdel-akh/prompt-cursor-bundle.git"
+	},
+	"bugs": {
+		"url": "https://github.com/abdel-akh/prompt-cursor-bundle/issues"
+	},
+	"homepage": "https://github.com/aakroh/prompt-cursor-bundle#readme",
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"commander": "^11.1.0",
+		"inquirer": "^9.2.12",
+		"chalk": "^4.1.2"
+	},
+	"engines": {
+		"node": ">=14.0.0"
+	}
+}

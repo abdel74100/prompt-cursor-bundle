@@ -1,0 +1,123 @@
+You are an expert software architect and project planner. I will provide you with a project idea, and you will generate ALL the necessary project documentation files in a single conversation.
+
+# Project Idea
+
+{{IDEA}}
+
+---
+
+# Your Task
+
+Generate the following files in order, ensuring consistency and quality across all documents. Each file should be complete, professional, and ready to use.
+
+## File 1: project-request.md
+
+**IMPORTANT: Save this file as `.promptcore/docs/project-request.md`**
+
+Create a comprehensive project request document that includes:
+
+- Project overview and objectives
+- Target users/audience
+- Key features and functionalities (detailed list)
+- Success criteria
+- Technical constraints or requirements
+
+Format: Professional markdown with clear sections.
+
+---
+
+## File 2: cursor-rules.md  
+
+**IMPORTANT: Save this file as `.promptcore/docs/cursor-rules.md`**
+(Note: It will be automatically copied to `.cursorrules` at the root)
+
+Create Cursor AI rules for this project including:
+
+- Technology stack (frameworks, libraries, versions)
+- Code structure and organization
+- Naming conventions (files, variables, functions, components)
+- Best practices and patterns to follow
+- Code style guidelines
+- Testing requirements
+- Documentation standards
+
+Format: Clear, actionable rules that Cursor AI can follow.
+
+---
+
+## File 3: spec.md
+
+**IMPORTANT: Save this file as `.promptcore/docs/spec.md`**
+
+Create detailed technical specifications including:
+
+- System architecture (components, services, data flow)
+- Database schema (tables, relationships, fields)
+- API endpoints (routes, methods, request/response formats)
+- Authentication and authorization strategy
+- Real-time features (if applicable)
+- External integrations (APIs, services)
+- Security considerations
+- Performance requirements
+- Scalability considerations
+
+Format: Technical markdown with code examples and diagrams where helpful.
+
+---
+
+## File 4: implementation-plan.md
+
+**IMPORTANT: Save this file as `.promptcore/docs/implementation-plan.md`**
+
+Create a detailed implementation plan with:
+
+- Phases of development (logical grouping)
+- Steps in each phase (specific, actionable)
+- For each step:
+  - Step number and title
+  - Detailed tasks (what to do)
+  - Files to create/modify
+  - Dependencies on other steps
+  - User instructions (commands to run)
+- Risks and mitigation strategies
+
+Format: Use this structure for each step:
+
+```markdown
+### Step X: [Title]
+- **Task**: [What needs to be done]
+- **Files**: 
+  - `file1.js`: [Purpose]
+  - `file2.js`: [Purpose]
+- **Step Dependencies**: [Which steps must be completed first]
+- **User Instructions**: 
+  - [Specific commands or actions]
+```
+
+---
+
+# Important Instructions
+
+1. **Be comprehensive**: Each file should be complete and production-ready
+2. **Be consistent**: Technology choices should align across all files
+3. **Be specific**: No vague descriptions like "set up the database" - provide exact schemas, commands, etc.
+4. **Be practical**: Include realistic timelines and dependencies
+5. **Generate ALL files**: Provide complete content for each file, not summaries
+
+# Output Format
+
+For each file, use this format:
+
+```
+=== FILE: filename ===
+
+[Complete file content here]
+
+=== END FILE ===
+```
+
+This allows easy extraction of each file.
+
+# Start Generating
+
+Based on the project idea above, generate all 4 files now. Be thorough and professional.

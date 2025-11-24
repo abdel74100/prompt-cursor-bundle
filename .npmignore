@@ -1,0 +1,47 @@
+# Development files
+test/
+tests/
+*.test.js
+*.spec.js
+.env
+.env.*
+
+# Documentation sources
+docs/
+examples/
+*.md
+!README.md
+!LICENSE
+
+# Git and CI
+.git/
+.github/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+.promptcore/
+
+# Development scripts
+test.sh
+update-*.js
