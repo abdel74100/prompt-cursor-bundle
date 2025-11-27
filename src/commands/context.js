@@ -1,6 +1,8 @@
 const chalk = require('chalk');
 const path = require('path');
-const { loadContext, getWorkflowStatus, clearContext, CONTEXT_FILE_NAME } = require('../utils/contextTrackerV2');
+const { loadContext, getWorkflowStatus, clearContext, getContextFileName } = require('../utils/contextTrackerV2');
+const { detectProvider, getDirs, DEFAULT_PROVIDER } = require('../utils/directoryManager');
+const { getProvider, getPromptDirectory } = require('../utils/aiProviders');
 
 /**
  * Context command - Show and manage CLI context
@@ -8,16 +10,23 @@ const { loadContext, getWorkflowStatus, clearContext, CONTEXT_FILE_NAME } = requ
 async function contextCommand(options) {
   const workingDir = options.path || process.cwd();
   
+  // Auto-detect provider
+  const detectedProvider = await detectProvider(workingDir) || DEFAULT_PROVIDER;
+  
   // Handle clear option
   if (options.clear) {
-    clearContext(workingDir);
+    clearContext(workingDir, detectedProvider);
     console.log(chalk.green('✅ Context cleared successfully'));
     return;
   }
   
   // Load and display context
-  const context = loadContext(workingDir);
+  const context = await loadContext(workingDir, detectedProvider);
   const status = getWorkflowStatus(context);
+  const aiProviderKey = context.aiProvider || detectedProvider;
+  const provider = getProvider(aiProviderKey);
+  const promptDir = getPromptDirectory(aiProviderKey);
+  const dirs = getDirs(aiProviderKey);
   
   console.log(chalk.blue.bold('\n📊 CLI Context & Project Status\n'));
   console.log(chalk.gray('━'.repeat(50)));
@@ -26,6 +35,8 @@ async function contextCommand(options) {
   console.log(chalk.cyan('\n📋 Project Information:'));
   console.log(chalk.white(`  Name: ${context.projectName || chalk.gray('Not set')}`));
   console.log(chalk.white(`  Directory: ${workingDir}`));
+  console.log(chalk.white(`  AI Provider: ${provider.icon} ${provider.name}`));
+  console.log(chalk.white(`  Prompt Directory: ${promptDir}/`));
   console.log(chalk.white(`  Created: ${context.createdAt ? new Date(context.createdAt).toLocaleDateString() : 'Unknown'}`));
   console.log(chalk.white(`  Last Activity: ${status.lastActivity ? new Date(status.lastActivity).toLocaleString() : 'Never'}`));
   
@@ -37,7 +48,7 @@ async function contextCommand(options) {
   // Progress Indicators
   console.log(chalk.cyan('\n📈 Progress:'));
   console.log(chalk.white(`  1. Prompt Generation: ${status.progress.prompt}`));
-  console.log(chalk.white(`  2. Cursor AI Files: ${status.progress.cursor}`));
+  console.log(chalk.white(`  2. AI Files: ${status.progress.cursor}`));
   console.log(chalk.white(`  3. Build Process: ${status.progress.build}`));
   console.log(chalk.white(`  4. Development: ${status.progress.development}`));
   
@@ -45,13 +56,14 @@ async function contextCommand(options) {
   console.log(chalk.cyan('\n📁 File Status:'));
   const fileStatus = {
     'idea.md': context.projectState.hasIdea ? '✅' : '❌',
-    'prompt-generate.md': context.projectState.hasPromptGenerate ? '✅' : '❌',
-    'project-request.md': context.projectState.hasProjectRequest ? '✅' : '❌',
-    '.cursorrules': context.projectState.hasCursorRules ? '✅' : '❌',
-    'spec.md': context.projectState.hasSpec ? '✅' : '❌',
-    'implementation-plan.md': context.projectState.hasImplementationPlan ? '✅' : '❌',
-    'code-run.md': context.projectState.hasCodeRun ? '✅' : '❌',
-    'Instructions/': context.projectState.hasInstructions ? '✅' : '❌'
+    [`${promptDir}/prompts/prompt-generate.md`]: context.projectState.hasPromptGenerate ? '✅' : '❌',
+    [`${promptDir}/docs/project-request.md`]: context.projectState.hasProjectRequest ? '✅' : '❌',
+    [`${promptDir}/docs/ai-rules.md`]: context.projectState.hasAiRules ? '✅' : '❌',
+    [`${promptDir}/docs/spec.md`]: context.projectState.hasSpec ? '✅' : '❌',
+    [`${promptDir}/docs/implementation-plan.md`]: context.projectState.hasImplementationPlan ? '✅' : '❌',
+    [`${promptDir}/workflow/code-run.md`]: context.projectState.hasCodeRun ? '✅' : '❌',
+    [`${promptDir}/workflow/Instructions/`]: context.projectState.hasInstructions ? '✅' : '❌',
+    [provider.rulesFile]: context.projectState.hasAiRules ? '✅' : '❌'
   };
   
   Object.entries(fileStatus).forEach(([file, status]) => {
@@ -84,14 +96,14 @@ async function contextCommand(options) {
     console.log(chalk.yellow('  2. Run: prompt-cursor generate -i idea.md'));
   }
   if (context.projectState.hasPromptGenerate && !context.projectState.cursorPhaseComplete) {
-    console.log(chalk.yellow('  3. Use prompt-generate.md in Cursor AI'));
-    console.log(chalk.yellow('  4. Save the 4 files Cursor generates'));
+    console.log(chalk.yellow(`  3. Use ${promptDir}/prompts/prompt-generate.md in ${provider.name}`));
+    console.log(chalk.yellow(`  4. Save the 4 files in ${promptDir}/docs/`));
   }
   if (context.projectState.cursorPhaseComplete && !context.projectState.buildPhaseComplete) {
     console.log(chalk.yellow('  5. Run: prompt-cursor build'));
   }
   if (context.projectState.buildPhaseComplete) {
-    console.log(chalk.green('  ✅ Ready for development! Follow code-run.md'));
+    console.log(chalk.green(`  ✅ Ready for development! Follow ${promptDir}/workflow/code-run.md`));
   }
   
   // Command History (recent)
@@ -112,7 +124,8 @@ async function contextCommand(options) {
   }
   
   console.log(chalk.gray('\n━'.repeat(50)));
-  console.log(chalk.gray(`\nContext file: ${path.join(workingDir, CONTEXT_FILE_NAME)}`));
+  const contextFileName = getContextFileName(aiProviderKey);
+  console.log(chalk.gray(`\nContext file: ${path.join(workingDir, promptDir, contextFileName)}`));
   console.log(chalk.gray('Use --verbose for more details, --clear to reset\n'));
 }
 

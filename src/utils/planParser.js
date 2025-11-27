@@ -258,11 +258,11 @@ class PlanParser {
    */
   static groupIntoPhases(steps, targetPhases = 5) {
     if (steps.length <= targetPhases) {
-    return steps.map(step => ({
-      name: step.name,
-      objective: step.objective,
-      tasks: step.tasks
-    }));
+      return steps.map(step => ({
+        name: step.name,
+        objective: step.objective,
+        tasks: step.tasks
+      }));
     }
     
     // Group steps into phases

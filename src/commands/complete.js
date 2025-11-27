@@ -2,6 +2,8 @@ const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
 const { getContext, updateContext } = require('../utils/contextTrackerV2');
+const { detectProvider, getDirs, DEFAULT_PROVIDER } = require('../utils/directoryManager');
+const { getPromptDirectory } = require('../utils/aiProviders');
 
 // Dynamic import for inquirer (ESM module in version 9+)
 let inquirer;
@@ -19,22 +21,29 @@ async function completeCommand(options = {}) {
   console.log(chalk.blue('✅ Complete Step - Update Progress\n'));
 
   try {
+    const outputDir = options.path || process.cwd();
+    
+    // Auto-detect provider
+    const aiProviderKey = await detectProvider(outputDir) || DEFAULT_PROVIDER;
+    const promptDir = getPromptDirectory(aiProviderKey);
+    const dirs = getDirs(aiProviderKey);
+    
     // Get context
-    const context = await getContext();
+    const context = await getContext(outputDir, aiProviderKey);
     
     if (!context.projectName) {
       console.log(chalk.yellow('⚠ No project found. Run "prompt-cursor generate" first.'));
       return;
     }
 
-    const outputDir = context.outputDir || process.cwd();
-    const codeRunPath = path.join(outputDir, '.prompt-cursor', 'workflow', 'code-run.md');
+    const codeRunPath = path.join(outputDir, dirs.WORKFLOW, 'code-run.md');
 
     // Check if code-run.md exists
     try {
       await fs.access(codeRunPath);
     } catch {
-      console.log(chalk.yellow('⚠ code-run.md not found. Run "prompt-cursor build" first.'));
+      console.log(chalk.yellow(`⚠ code-run.md not found. Run "prompt-cursor build" first.`));
+      console.log(chalk.gray(`   Expected at: ${promptDir}/workflow/code-run.md`));
       return;
     }
 
@@ -129,12 +138,12 @@ async function completeCommand(options = {}) {
     await fs.writeFile(codeRunPath, codeRunContent, 'utf-8');
 
     // Update context
-    const updatedContext = await getContext();
+    const updatedContext = await getContext(outputDir, aiProviderKey);
     updatedContext.development = updatedContext.development || {};
     updatedContext.development.lastCompletedStep = stepNumber;
     updatedContext.development.currentStep = nextStep ? nextStep.number : stepNumber;
     updatedContext.lastUpdated = new Date().toISOString();
-    await updateContext(updatedContext);
+    await updateContext(updatedContext, outputDir, aiProviderKey);
 
     console.log(chalk.green(`✓ Étape ${stepNumber} marquée comme terminée !`));
     
@@ -144,7 +153,7 @@ async function completeCommand(options = {}) {
       console.log(chalk.green('🎉 Toutes les étapes sont terminées !'));
     }
     
-    console.log(chalk.gray(`\nMis à jour: ${codeRunPath}`));
+    console.log(chalk.gray(`\nMis à jour: ${promptDir}/workflow/code-run.md`));
 
   } catch (error) {
     console.error(chalk.red('✗ Erreur lors de la mise à jour:'), error.message);

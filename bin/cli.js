@@ -24,6 +24,7 @@ program
   .option('-n, --name <name>', 'Project name')
   .option('-i, --idea-file <path>', 'Path to your idea file (required)')
   .option('-o, --output <path>', 'Output directory', './my-project')
+  .option('-p, --provider <provider>', 'AI provider (cursor, claude, windsurf, copilot)')
   .action(async (options) => {
     await generateCommand(options);
   });

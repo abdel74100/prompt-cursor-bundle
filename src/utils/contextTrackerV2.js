@@ -1,15 +1,31 @@
 const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
-const { ensureDirectoryStructure, getFilePath, PROMPTCORE_DIR } = require('./directoryManager');
+const { getDirs, detectProvider, DEFAULT_PROVIDER } = require('./directoryManager');
 
-const CONTEXT_FILE_NAME = '.prompt-cursor-context.json';
+/**
+ * Get context file name for a provider
+ * @param {string} providerKey - Provider key
+ * @returns {string} Context file name
+ */
+function getContextFileName(providerKey = DEFAULT_PROVIDER) {
+  return `.${providerKey}-context.json`;
+}
 
 /**
  * Load context from file or create new one with auto-detection
+ * @param {string} workingDir - Working directory
+ * @param {string} providerKey - Provider key (optional, will auto-detect)
  */
-function loadContext(workingDir = process.cwd()) {
-  const contextPath = path.join(workingDir, PROMPTCORE_DIR, CONTEXT_FILE_NAME);
+async function loadContext(workingDir = process.cwd(), providerKey = null) {
+  // Auto-detect provider if not specified
+  if (!providerKey) {
+    providerKey = await detectProvider(workingDir) || DEFAULT_PROVIDER;
+  }
+  
+  const dirs = getDirs(providerKey);
+  const contextFileName = getContextFileName(providerKey);
+  const contextPath = path.join(workingDir, dirs.ROOT, contextFileName);
   
   let context;
   if (fs.existsSync(contextPath)) {
@@ -23,24 +39,26 @@ function loadContext(workingDir = process.cwd()) {
       }
     } catch (error) {
       console.error(chalk.yellow(`⚠️ Error reading context: ${error.message}`));
-      context = createContext();
+      context = createContext(providerKey);
     }
   } else {
-    context = createContext();
+    context = createContext(providerKey);
   }
   
   // Auto-detect project status from files
-  context = detectProjectStatus(context, workingDir);
+  context = detectProjectStatus(context, workingDir, providerKey);
   
   return context;
 }
 
 /**
  * Create a new enhanced context structure
+ * @param {string} providerKey - Provider key
  */
-function createContext() {
+function createContext(providerKey = DEFAULT_PROVIDER) {
   return {
     version: '2.0.0',
+    aiProvider: providerKey,
     projectName: null,
     outputDir: null,
     createdAt: new Date().toISOString(),
@@ -57,7 +75,7 @@ function createContext() {
     // File tracking
     files: {
       generated: [],      // Files created by CLI
-      cursorCreated: [],  // Files created by Cursor AI
+      cursorCreated: [],  // Files created by AI
       buildCreated: [],   // Files created by build command
       detected: []        // Files detected but not tracked
     },
@@ -68,7 +86,7 @@ function createContext() {
       hasIdea: false,
       hasPromptGenerate: false,
       hasProjectRequest: false,
-      hasCursorRules: false,
+      hasAiRules: false,
       hasSpec: false,
       hasImplementationPlan: false,
       hasCodeRun: false,
@@ -114,16 +132,21 @@ function createContext() {
 
 /**
  * Detect project status from existing files
+ * @param {Object} context - Context object
+ * @param {string} workingDir - Working directory
+ * @param {string} providerKey - Provider key
  */
-function detectProjectStatus(context, workingDir) {
+function detectProjectStatus(context, workingDir, providerKey = DEFAULT_PROVIDER) {
+  const dirs = getDirs(providerKey);
+  
   const fileChecks = {
     'idea.md': 'hasIdea',
-    'prompt-generate.md': 'hasPromptGenerate',
-    'project-request.md': 'hasProjectRequest',
-    '.cursorrules': 'hasCursorRules',
-    'spec.md': 'hasSpec',
-    'implementation-plan.md': 'hasImplementationPlan',
-    'code-run.md': 'hasCodeRun'
+    [`${dirs.PROMPTS}/prompt-generate.md`]: 'hasPromptGenerate',
+    [`${dirs.DOCS}/project-request.md`]: 'hasProjectRequest',
+    [`${dirs.DOCS}/ai-rules.md`]: 'hasAiRules',
+    [`${dirs.DOCS}/spec.md`]: 'hasSpec',
+    [`${dirs.DOCS}/implementation-plan.md`]: 'hasImplementationPlan',
+    [`${dirs.WORKFLOW}/code-run.md`]: 'hasCodeRun'
   };
   
   // Check individual files
@@ -139,7 +162,7 @@ function detectProjectStatus(context, workingDir) {
   });
   
   // Check Instructions directory
-  const instructionsPath = path.join(workingDir, 'Instructions');
+  const instructionsPath = path.join(workingDir, dirs.INSTRUCTIONS);
   context.projectState.hasInstructions = fs.existsSync(instructionsPath);
   
   // Detect workflow phases completion
@@ -147,7 +170,7 @@ function detectProjectStatus(context, workingDir) {
   
   context.projectState.cursorPhaseComplete = 
     context.projectState.hasProjectRequest && 
-    context.projectState.hasCursorRules && 
+    context.projectState.hasAiRules && 
     context.projectState.hasSpec && 
     context.projectState.hasImplementationPlan;
   
@@ -178,7 +201,7 @@ function detectProjectStatus(context, workingDir) {
   
   // Parse code-run.md if exists to get development progress
   if (context.projectState.hasCodeRun) {
-    const codeRunPath = path.join(workingDir, 'code-run.md');
+    const codeRunPath = path.join(workingDir, dirs.WORKFLOW, 'code-run.md');
     try {
       const content = fs.readFileSync(codeRunPath, 'utf-8');
       context.development = parseCodeRunProgress(content, context.development);
@@ -227,15 +250,26 @@ function parseCodeRunProgress(content, currentDev = {}) {
 
 /**
  * Save context to file
+ * @param {Object} context - Context object
+ * @param {string} workingDir - Working directory
+ * @param {string} providerKey - Provider key
  */
-function saveContext(context, workingDir = process.cwd()) {
-  // Ensure .prompt-cursor directory exists
-  if (!fs.existsSync(path.join(workingDir, PROMPTCORE_DIR))) {
-    fs.mkdirSync(path.join(workingDir, PROMPTCORE_DIR), { recursive: true });
+function saveContext(context, workingDir = process.cwd(), providerKey = null) {
+  // Use provider from context or default
+  providerKey = providerKey || context.aiProvider || DEFAULT_PROVIDER;
+  
+  const dirs = getDirs(providerKey);
+  const contextFileName = getContextFileName(providerKey);
+  
+  // Ensure prompt directory exists
+  const promptDir = path.join(workingDir, dirs.ROOT);
+  if (!fs.existsSync(promptDir)) {
+    fs.mkdirSync(promptDir, { recursive: true });
   }
   
-  const contextPath = path.join(workingDir, PROMPTCORE_DIR, CONTEXT_FILE_NAME);
+  const contextPath = path.join(promptDir, contextFileName);
   context.lastUpdated = new Date().toISOString();
+  context.aiProvider = providerKey;
   
   // Update statistics
   context.statistics.filesGenerated = 
@@ -360,7 +394,7 @@ function getWorkflowStatus(context) {
  * Migrate old context to new format
  */
 function migrateContext(oldContext) {
-  const newContext = createContext();
+  const newContext = createContext(oldContext.aiProvider || DEFAULT_PROVIDER);
   
   // Migrate basic info
   newContext.projectName = oldContext.projectName;
@@ -386,13 +420,18 @@ function migrateContext(oldContext) {
 
 /**
  * Clear context
+ * @param {string} workingDir - Working directory
+ * @param {string} providerKey - Provider key
  */
-function clearContext(workingDir = process.cwd()) {
-  const contextPath = path.join(workingDir, PROMPTCORE_DIR, CONTEXT_FILE_NAME);
+function clearContext(workingDir = process.cwd(), providerKey = DEFAULT_PROVIDER) {
+  const dirs = getDirs(providerKey);
+  const contextFileName = getContextFileName(providerKey);
+  const contextPath = path.join(workingDir, dirs.ROOT, contextFileName);
+  
   if (fs.existsSync(contextPath)) {
     fs.unlinkSync(contextPath);
   }
-  return createContext();
+  return createContext(providerKey);
 }
 
 // Maintain backward compatibility
@@ -430,6 +469,6 @@ module.exports = {
   updateState,
   recordSession: recordCommand,
   
-  // Constants
-  CONTEXT_FILE_NAME
+  // Helpers
+  getContextFileName
 };

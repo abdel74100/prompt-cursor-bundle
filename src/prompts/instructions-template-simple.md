@@ -16,7 +16,7 @@
 
 ## 🧪 Tests requis
 
-### Fichier de test: `tests/step{{STEP_NUMBER}}_test.{{EXT}}`
+### Tests unitaires: `tests/step{{STEP_NUMBER}}_test.{{EXT}}`
 
 **Tests à implémenter:**
 
@@ -25,6 +25,39 @@
 **Commande pour exécuter les tests:**
 ```bash
 {{TEST_COMMAND}}
+```
+
+### 🎯 Tests E2E Cypress (optionnel)
+
+**Dossier:** `cypress/e2e/step{{STEP_NUMBER}}/`
+
+**Fichier de test:** `cypress/e2e/step{{STEP_NUMBER}}/step{{STEP_NUMBER}}.cy.js`
+
+**Tests Cypress à créer:**
+
+```javascript
+describe('Étape {{STEP_NUMBER}}: {{STEP_NAME}}', () => {
+  beforeEach(() => {
+    // Setup avant chaque test
+    cy.visit('http://localhost:3000');
+  });
+
+  {{CYPRESS_TESTS}}
+
+  it('Validation complète de l\'étape {{STEP_NUMBER}}', () => {
+    // Vérifier que toutes les fonctionnalités de l'étape fonctionnent
+    cy.log('✅ Étape {{STEP_NUMBER}} complète et fonctionnelle');
+  });
+});
+```
+
+**Lancer les tests Cypress:**
+```bash
+# Tests en mode interactif
+npx cypress open
+
+# Tests en mode headless
+npx cypress run --spec "cypress/e2e/step{{STEP_NUMBER}}/**"
 ```
 
 ---

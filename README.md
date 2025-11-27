@@ -1,8 +1,8 @@
 # 🚀 Prompt Cursor Bundle
 
-> **Le bundle professionnel de structuration de projets pour Cursor AI** ⚡
+> **Le bundle universel de structuration de projets pour assistants AI** ⚡
 > 
-> Transformez votre idée en projet structuré en 2 minutes avec une seule conversation Cursor !
+> Transformez votre idée en projet structuré en 2 minutes avec Cursor, Claude, Windsurf ou Copilot !
 
 [![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org)
@@ -13,9 +13,9 @@
 
 ## ✨ Qu'est-ce que Prompt Cursor Bundle ?
 
-Un outil CLI révolutionnaire qui :
+Un outil CLI universel qui :
 - 🎯 **Génère UN prompt intelligent** qui crée TOUS vos fichiers projet
-- 🤖 **Guide Cursor AI** pour produire une documentation complète et cohérente
+- 🤖 **Compatible multi-AI** : Cursor, Claude, Windsurf, GitHub Copilot
 - 📊 **Parse automatiquement** vos plans pour créer un workflow de développement
 - 🔍 **Track votre progression** avec un dashboard intelligent
 - ⚙️ **Vérifie la compatibilité** des versions de packages (évite les erreurs)
@@ -23,21 +23,35 @@ Un outil CLI révolutionnaire qui :
 
 **Résultat :** De l'idée au projet structuré en **2 commandes** !
 
+### 🤖 Assistants AI Supportés
+
+| Assistant | Fichier de règles généré |
+|-----------|--------------------------|
+| 🎯 Cursor | `.cursorrules` |
+| 🤖 Claude | `CLAUDE.md` |
+| 🏄 Windsurf | `.windsurfrules` |
+| 🐙 GitHub Copilot | `.github/copilot-instructions.md` |
+
 ---
 
 ## 🎬 Démo Rapide - En 3 Commandes
 
 ```bash
-# 1. Générer le prompt intelligent (avec versions compatibles)
+# 1. Générer le prompt intelligent (choisir votre AI assistant)
 prompt-cursor generate -i idea.md -o ./mon-projet
-# ou avec l'alias court
-pcb gen -i idea.md -o ./mon-projet
 
-# 2. [Copier le prompt dans Cursor AI ou Autre AI cli ide]
+# ? Which AI assistant will you use?
+#   > 🎯 Cursor
+#     🤖 Claude
+#     🏄 Windsurf
+#     🐙 GitHub Copilot
+
+# 2. [Copier le prompt dans votre AI assistant]
 #    Sauvegarder les 4 fichiers dans .prompt-cursor/docs/
 
 # 3. Générer le workflow de développement
 prompt-cursor build
+# → Génère automatiquement le bon fichier de règles selon votre choix !
 
 # 4. Suivre et marquer la progression
 prompt-cursor complete
@@ -61,10 +75,10 @@ npm install -g @aakroh/prompt-cursor-bundle
 # Créer idea.md
 echo "Todo app avec React + TailwindCSS" > idea.md
 
-# Générer
+# Générer (choisir votre AI assistant)
 prompt-cursor generate -i idea.md -o ./projet
 
-# [Copier prompt → Cursor AI → Sauvegarder dans .prompt-cursor/docs/]
+# [Copier prompt → Votre AI Assistant → Sauvegarder dans .prompt-cursor/docs/]
 
 # Builder
 cd ./projet && prompt-cursor build
@@ -90,22 +104,26 @@ cd ./projet && prompt-cursor build
 
 ```
 mon-projet/
-├── .prompt-cursor/                  # 📦 Dossier dédié (caché)
+├── .prompt-cursor/               # 📦 Dossier dédié (caché)
 │   ├── prompts/                  # Prompts générés
-│   │   ├── prompt-generate.md
-│   │   └── step[1-4]-prompt.md
-│   ├── docs/                     # Documentation Cursor
+│   │   └── prompt-generate.md
+│   ├── docs/                     # Documentation AI
 │   │   ├── project-request.md
-│   │   ├── cursor-rules.md
+│   │   ├── ai-rules.md           # Règles génériques
 │   │   ├── spec.md
 │   │   └── implementation-plan.md
 │   ├── workflow/                 # Workflow de développement
 │   │   ├── code-run.md
 │   │   └── Instructions/
 │   └── .prompt-cursor-context.json
-├── .cursorrules                  # Seul fichier à la racine
+├── .cursorrules                  # Cursor
+├── CLAUDE.md                     # ou Claude
+├── .windsurfrules                # ou Windsurf
+├── .github/copilot-instructions.md  # ou Copilot
 └── src/                          # Votre code source
 ```
+
+> **Note:** Un seul fichier de règles est généré selon l'assistant AI choisi.
 
 ---
 

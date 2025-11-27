@@ -4,7 +4,8 @@ const fs = require('fs').promises;
 const { loadContext, saveContext, recordCommand, trackFile, updateWorkflowPhase } = require('../utils/contextTrackerV2');
 const CodeRunGenerator = require('../utils/codeRunGenerator');
 const PlanParser = require('../utils/planParser');
-const { ensureDirectoryStructure, getFilePath, DIRS } = require('../utils/directoryManager');
+const { ensureDirectoryStructure, getFilePath, getDirs, detectProvider, DEFAULT_PROVIDER } = require('../utils/directoryManager');
+const { getProvider, getRulesPath, getRulesDir, getPromptDirectory } = require('../utils/aiProviders');
 
 /**
  * Build command - Generate intelligent code-run from saved responses
@@ -15,28 +16,41 @@ async function buildCommand(options) {
 
   try {
     const outputDir = path.resolve(options.output || process.cwd());
-    const context = loadContext(outputDir);
+    
+    // Auto-detect provider from existing directory or use default
+    let aiProviderKey = await detectProvider(outputDir) || DEFAULT_PROVIDER;
+    
+    // Load context (will use detected provider)
+    const context = await loadContext(outputDir, aiProviderKey);
+    
+    // Use provider from context if available
+    aiProviderKey = context.aiProvider || aiProviderKey;
+    const provider = getProvider(aiProviderKey);
+    const promptDir = getPromptDirectory(aiProviderKey);
+    const dirs = getDirs(aiProviderKey);
+    
+    console.log(chalk.gray(`Using ${provider.icon} ${provider.name} (${promptDir}/)\n`));
     
     // Ensure directory structure exists
-    await ensureDirectoryStructure(outputDir);
+    await ensureDirectoryStructure(outputDir, aiProviderKey);
     
-    // Check for required files in .prompt-cursor/docs/
+    // Check for required files in prompt directory docs/
     const filesToCheck = [
       'implementation-plan.md',
       'spec.md',
       'project-request.md',
-      'cursor-rules.md'
+      'ai-rules.md'
     ];
     
     const foundFiles = {};
     const missingFiles = [];
     
     for (const file of filesToCheck) {
-      const filePath = path.join(outputDir, DIRS.DOCS, file);
+      const filePath = path.join(outputDir, dirs.DOCS, file);
       try {
         await fs.access(filePath);
         foundFiles[file] = filePath;
-        console.log(chalk.green(`✓ Found: .prompt-cursor/docs/${file}`));
+        console.log(chalk.green(`✓ Found: ${promptDir}/docs/${file}`));
       } catch (error) {
         // Also check root directory for backward compatibility
         const rootPath = path.join(outputDir, file);
@@ -53,11 +67,11 @@ async function buildCommand(options) {
     
     if (missingFiles.length === filesToCheck.length) {
       console.log(chalk.red('\n❌ Error: No response files found!'));
-      console.log(chalk.yellow('\nPlease save your Cursor AI responses in .prompt-cursor/docs/:'));
-      console.log(chalk.white('  - .prompt-cursor/docs/project-request.md'));
-      console.log(chalk.white('  - .prompt-cursor/docs/cursor-rules.md'));
-      console.log(chalk.white('  - .prompt-cursor/docs/spec.md'));
-      console.log(chalk.white('  - .prompt-cursor/docs/implementation-plan.md'));
+      console.log(chalk.yellow(`\nPlease save your AI responses in ${promptDir}/docs/:`));
+      console.log(chalk.white(`  - ${promptDir}/docs/project-request.md`));
+      console.log(chalk.white(`  - ${promptDir}/docs/ai-rules.md`));
+      console.log(chalk.white(`  - ${promptDir}/docs/spec.md`));
+      console.log(chalk.white(`  - ${promptDir}/docs/implementation-plan.md`));
       console.log(chalk.cyan('\nThen run: prompt-cursor build\n'));
       process.exit(1);
     }
@@ -95,48 +109,55 @@ async function buildCommand(options) {
       outputDir: outputDir,
       steps: steps,
       fileExtension: 'js',
-      language: 'javascript'
+      language: 'javascript',
+      aiProvider: aiProviderKey
     });
     
     await generator.generate();
     
-    // Copy cursor rules to root (required by Cursor)
-    if (foundFiles['cursor-rules.md']) {
-      const cursorRulesPath = getFilePath(outputDir, 'CURSORRULES');
+    // Copy rules file based on AI provider
+    if (foundFiles['ai-rules.md']) {
       try {
-        const rulesContent = await fs.readFile(foundFiles['cursor-rules.md'], 'utf-8');
-        await fs.writeFile(cursorRulesPath, rulesContent, 'utf-8');
-        console.log(chalk.green('✓ Generated .cursorrules'));
+        // Create directory if needed (e.g., .github for Copilot)
+        const rulesDir = getRulesDir(aiProviderKey, outputDir);
+        if (rulesDir) {
+          await fs.mkdir(rulesDir, { recursive: true });
+        }
+        
+        const rulesPath = getRulesPath(aiProviderKey, outputDir);
+        const rulesContent = await fs.readFile(foundFiles['ai-rules.md'], 'utf-8');
+        await fs.writeFile(rulesPath, rulesContent, 'utf-8');
+        console.log(chalk.green(`✓ Generated ${provider.rulesFile} for ${provider.name}`));
       } catch (error) {
-        console.log(chalk.yellow(`⚠ Could not copy cursor rules: ${error.message}`));
+        console.log(chalk.yellow(`⚠ Could not copy rules: ${error.message}`));
       }
     }
     
     // Update context
     recordCommand(context, 'build', options);
-    trackFile(context, '.prompt-cursor/workflow/code-run.md', 'buildCreated');
-    trackFile(context, '.prompt-cursor/workflow/Instructions/', 'buildCreated');
+    trackFile(context, `${promptDir}/workflow/code-run.md`, 'buildCreated');
+    trackFile(context, `${promptDir}/workflow/Instructions/`, 'buildCreated');
     updateWorkflowPhase(context, 'development');
     
-    // Mark Cursor files as created
+    // Mark AI files as created
     if (foundFiles['implementation-plan.md']) trackFile(context, 'implementation-plan.md', 'cursorCreated');
     if (foundFiles['spec.md']) trackFile(context, 'spec.md', 'cursorCreated');
     if (foundFiles['project-request.md']) trackFile(context, 'project-request.md', 'cursorCreated');
     
-    saveContext(context, outputDir);
+    saveContext(context, outputDir, aiProviderKey);
     
     // Summary
     console.log(chalk.green.bold('\n✨ Build complete!\n'));
     console.log(chalk.cyan('📦 Generated files:'));
-    console.log(chalk.white('  ✓ .prompt-cursor/workflow/code-run.md'));
-    console.log(chalk.white(`  ✓ .prompt-cursor/workflow/Instructions/ (${steps.length} files)`));
-    if (foundFiles['cursor-rules.md']) {
-      console.log(chalk.white('  ✓ .cursorrules (copied to root)'));
+    console.log(chalk.white(`  ✓ ${promptDir}/workflow/code-run.md`));
+    console.log(chalk.white(`  ✓ ${promptDir}/workflow/Instructions/ (${steps.length} files)`));
+    if (foundFiles['ai-rules.md']) {
+      console.log(chalk.white(`  ✓ ${provider.rulesFile} (${provider.name})`));
     }
     
     console.log(chalk.cyan('\n📋 Next steps:'));
-    console.log(chalk.white('  1. Open .prompt-cursor/workflow/code-run.md'));
-    console.log(chalk.white('  2. Review .prompt-cursor/workflow/Instructions/instructions-step1.md'));
+    console.log(chalk.white(`  1. Open ${promptDir}/workflow/code-run.md`));
+    console.log(chalk.white(`  2. Review ${promptDir}/workflow/Instructions/instructions-step1.md`));
     console.log(chalk.white('  3. Customize the TODOs for your project'));
     console.log(chalk.white('  4. Start development! 🚀\n'));
     
@@ -153,4 +174,3 @@ async function buildCommand(options) {
 }
 
 module.exports = buildCommand;
-

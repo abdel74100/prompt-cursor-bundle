@@ -1,7 +1,8 @@
 const fs = require("fs").promises;
 const path = require("path");
 const chalk = require("chalk");
-const { ensureDirectoryStructure, getFilePath, DIRS } = require('./directoryManager');
+const { ensureDirectoryStructure, getFilePath, getDirs, DEFAULT_PROVIDER } = require('./directoryManager');
+const { getPromptDirectory } = require('./aiProviders');
 
 /**
  * Generate code-run.md and Instructions directory with step files
@@ -13,6 +14,9 @@ class CodeRunGenerator {
 		this.steps = options.steps || [];
 		this.fileExtension = options.fileExtension || "js";
 		this.language = options.language || "javascript";
+		this.aiProvider = options.aiProvider || DEFAULT_PROVIDER;
+		this.promptDir = getPromptDirectory(this.aiProvider);
+		this.dirs = getDirs(this.aiProvider);
 	}
 
 	/**
@@ -53,8 +57,8 @@ class CodeRunGenerator {
 	 * Generate code-run.md file
 	 */
 	async generateCodeRunFile() {
-		// Ensure .promptcore directory structure exists
-		await ensureDirectoryStructure(this.outputDir);
+		// Ensure prompt directory structure exists
+		await ensureDirectoryStructure(this.outputDir, this.aiProvider);
 
 		const templatePath = path.join(
 			__dirname,
@@ -83,10 +87,10 @@ class CodeRunGenerator {
 		}
 
 		const content = this.replacePlaceholders(template, replacements);
-		const outputPath = getFilePath(this.outputDir, 'CODE_RUN');
+		const outputPath = getFilePath(this.outputDir, 'CODE_RUN', this.aiProvider);
 
 		await fs.writeFile(outputPath, content, "utf-8");
-		console.log(chalk.green(`✓ Fichier code-run.md créé: .promptcore/workflow/code-run.md`));
+		console.log(chalk.green(`✓ Fichier code-run.md créé: ${this.promptDir}/workflow/code-run.md`));
 
 		return outputPath;
 	}
@@ -95,13 +99,13 @@ class CodeRunGenerator {
 	 * Generate Instructions directory and step files
 	 */
 	async generateInstructionsFiles() {
-		const instructionsDir = path.join(this.outputDir, DIRS.INSTRUCTIONS);
+		const instructionsDir = path.join(this.outputDir, this.dirs.INSTRUCTIONS);
 
 		// Create Instructions directory
 		try {
 			await fs.mkdir(instructionsDir, { recursive: true });
 			console.log(
-				chalk.green(`✓ Dossier Instructions créé: ${instructionsDir}`),
+				chalk.green(`✓ Dossier Instructions créé: ${this.promptDir}/workflow/Instructions`),
 			);
 		} catch (error) {
 			if (error.code !== "EEXIST") throw error;
@@ -142,6 +146,8 @@ class CodeRunGenerator {
 			
 			// Generate tests list with specific criteria
 			let testsList = '';
+			let cypressTests = '';
+			
 			if (Array.isArray(step.tasks) && step.tasks.length > 0) {
 				step.tasks.slice(0, 5).forEach((task, idx) => {
 					testsList += `${idx + 1}. **Test:** ${task.description}\n`;
@@ -149,40 +155,55 @@ class CodeRunGenerator {
 					// Generate specific test criteria based on task description
 					const taskLower = task.description.toLowerCase();
 					let testCriteria = '';
+					let cypressTest = '';
 					
 					if (taskLower.includes('initialize') || taskLower.includes('setup') && !taskLower.includes('set up')) {
 						testCriteria = 'Le projet est correctement initialisé avec tous les fichiers de configuration';
+						cypressTest = `  it('devrait avoir tous les fichiers de configuration', () => {\n    cy.exec('ls package.json').its('code').should('eq', 0);\n  });\n\n`;
 					} else if (taskLower.includes('install') || taskLower.includes('configure') || taskLower.includes('set up')) {
 						testCriteria = 'Toutes les dépendances sont installées et configurées correctement';
+						cypressTest = `  it('devrait avoir toutes les dépendances installées', () => {\n    cy.exec('npm list').its('code').should('eq', 0);\n  });\n\n`;
 					} else if (taskLower.includes('folder') || taskLower.includes('structure')) {
 						testCriteria = 'La structure de dossiers est créée selon les spécifications';
+						cypressTest = `  it('devrait avoir la structure de dossiers correcte', () => {\n    cy.task('checkFolderStructure').should('be.true');\n  });\n\n`;
 					} else if (taskLower.includes('api') || taskLower.includes('service')) {
 						testCriteria = 'Les appels API fonctionnent et retournent les données attendues';
+						cypressTest = `  it('devrait effectuer les appels API avec succès', () => {\n    cy.request('/api/endpoint').its('status').should('eq', 200);\n  });\n\n`;
 					} else if (taskLower.includes('component')) {
 						testCriteria = 'Le composant s\'affiche correctement et répond aux interactions';
+						cypressTest = `  it('devrait afficher le composant correctement', () => {\n    cy.get('[data-testid="component"]').should('be.visible');\n    cy.get('[data-testid="component"]').click();\n  });\n\n`;
 					} else if (taskLower.includes('state') || taskLower.includes('context')) {
 						testCriteria = 'L\'état est géré correctement et les mises à jour sont propagées';
+						cypressTest = `  it('devrait gérer l\'état correctement', () => {\n    cy.window().its('store.getState').should('exist');\n  });\n\n`;
 					} else if (taskLower.includes('test')) {
 						testCriteria = 'Les tests passent avec une couverture minimale de 80%';
 					} else if (taskLower.includes('animation')) {
 						testCriteria = 'Les animations sont fluides et s\'exécutent à 60 FPS';
+						cypressTest = `  it('devrait avoir des animations fluides', () => {\n    cy.get('[data-testid="animated-element"]').should('have.css', 'transition');\n  });\n\n`;
 					} else if (taskLower.includes('responsive')) {
 						testCriteria = 'L\'interface s\'adapte correctement à toutes les tailles d\'écran';
+						cypressTest = `  it('devrait être responsive', () => {\n    cy.viewport('iphone-6');\n    cy.get('[data-testid="main"]').should('be.visible');\n    cy.viewport('macbook-15');\n    cy.get('[data-testid="main"]').should('be.visible');\n  });\n\n`;
 					} else if (taskLower.includes('storage') || taskLower.includes('localstorage')) {
 						testCriteria = 'Les données sont correctement sauvegardées et récupérées';
+						cypressTest = `  it('devrait sauvegarder dans localStorage', () => {\n    cy.window().its('localStorage').invoke('getItem', 'key').should('exist');\n  });\n\n`;
 					} else if (taskLower.includes('error')) {
 						testCriteria = 'Les erreurs sont gérées gracieusement avec des messages clairs';
+						cypressTest = `  it('devrait gérer les erreurs', () => {\n    cy.get('[data-testid="error"]').should('contain', 'Error');\n  });\n\n`;
 					} else if (taskLower.includes('build') || taskLower.includes('deploy')) {
 						testCriteria = 'Le build se compile sans erreur et l\'application se déploie correctement';
+						cypressTest = `  it('devrait builder sans erreur', () => {\n    cy.exec('npm run build').its('code').should('eq', 0);\n  });\n\n`;
 					} else {
 						// Default more specific than before
 						testCriteria = `L'implémentation de "${task.description}" est complète et fonctionnelle`;
+						cypressTest = `  it('devrait valider: ${task.description}', () => {\n    // TODO: Ajouter les assertions spécifiques\n  });\n\n`;
 					}
 					
 					testsList += `   - Vérifie que: ${testCriteria}\n\n`;
+					cypressTests += cypressTest;
 				});
 			} else {
 				testsList = '1. **Test de base:** À définir selon les fonctionnalités\n';
+				cypressTests = '  it(\'devrait valider l\\\'étape\', () => {\n    // TODO: Ajouter les tests\n  });\n';
 			}
 
 			const replacements = {
@@ -194,6 +215,7 @@ class CodeRunGenerator {
 					(stepNumber === 1 ? "Aucune" : `Étape ${stepNumber - 1} complétée`),
 				TASKS_LIST: tasksList,
 				TESTS_LIST: testsList,
+				CYPRESS_TESTS: cypressTests || '  // Tests Cypress à ajouter ici',
 				EXT: this.fileExtension,
 				TEST_COMMAND: step.testCommand || "npm test",
 				NEXT_STEP_NUMBER: (stepNumber + 1).toString(),

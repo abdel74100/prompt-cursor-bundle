@@ -12,7 +12,7 @@ Generate the following files in order, ensuring consistency and quality across a
 
 ## File 1: project-request.md
 
-**IMPORTANT: Save this file as `.promptcore/docs/project-request.md`**
+**IMPORTANT: Save this file as `.prompt-cursor/docs/project-request.md`**
 
 Create a comprehensive project request document that includes:
 
@@ -26,12 +26,12 @@ Format: Professional markdown with clear sections.
 
 ---
 
-## File 2: cursor-rules.md  
+## File 2: ai-rules.md  
 
-**IMPORTANT: Save this file as `.promptcore/docs/cursor-rules.md`**
-(Note: It will be automatically copied to `.cursorrules` at the root)
+**IMPORTANT: Save this file as `.prompt-cursor/docs/ai-rules.md`**
+(Note: It will be automatically copied to the appropriate rules file based on your AI assistant)
 
-Create Cursor AI rules for this project including:
+Create AI assistant rules for this project including:
 
 - Technology stack (frameworks, libraries, versions)
 - Code structure and organization
@@ -41,13 +41,13 @@ Create Cursor AI rules for this project including:
 - Testing requirements
 - Documentation standards
 
-Format: Clear, actionable rules that Cursor AI can follow.
+Format: Clear, actionable rules that any AI coding assistant can follow.
 
 ---
 
 ## File 3: spec.md
 
-**IMPORTANT: Save this file as `.promptcore/docs/spec.md`**
+**IMPORTANT: Save this file as `.prompt-cursor/docs/spec.md`**
 
 Create detailed technical specifications including:
 
@@ -67,7 +67,7 @@ Format: Technical markdown with code examples and diagrams where helpful.
 
 ## File 4: implementation-plan.md
 
-**IMPORTANT: Save this file as `.promptcore/docs/implementation-plan.md`**
+**IMPORTANT: Save this file as `.prompt-cursor/docs/implementation-plan.md`**
 
 Create a detailed implementation plan with:
 
@@ -85,13 +85,13 @@ Format: Use this structure for each step:
 
 ```markdown
 ### Step X: [Title]
-- **Task**: [What needs to be done]
-- **Files**: 
-  - `file1.js`: [Purpose]
-  - `file2.js`: [Purpose]
-- **Step Dependencies**: [Which steps must be completed first]
-- **User Instructions**: 
-  - [Specific commands or actions]
+  - **Task**: [What needs to be done]
+  - **Files**: 
+    - `file1.js`: [Purpose]
+    - `file2.js`: [Purpose]
+  - **Step Dependencies**: [Which steps must be completed first]
+  - **User Instructions**: 
+    - [Specific commands or actions]
 ```
 
 ---

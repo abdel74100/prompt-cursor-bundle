@@ -4,8 +4,9 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const { loadContext, saveContext, recordCommand, trackFile, updateWorkflowPhase } = require('../utils/contextTrackerV2');
-const { ensureDirectoryStructure, getFilePath } = require('../utils/directoryManager');
+const { ensureDirectoryStructure, getFilePath, getDirs } = require('../utils/directoryManager');
 const { generateVersionsSection } = require('../utils/versionCompatibility');
+const { getProvider, getProviderChoices, getPromptDirectory } = require('../utils/aiProviders');
 
 /**
  * Load content from file
@@ -35,12 +36,13 @@ function ensureDirectoryExists(dirPath) {
  */
 async function generateCommand(options) {
   console.log(chalk.blue.bold('\n🚀 Generate - One Prompt to Rule Them All\n'));
-  console.log(chalk.gray('This creates a single intelligent prompt that Cursor AI will use to generate all your project files.\n'));
+  console.log(chalk.gray('This creates a single intelligent prompt for your AI assistant.\n'));
 
   try {
     let projectName = options.name;
     let ideaFile = options.ideaFile;
     let outputDir = options.output;
+    let aiProvider = options.provider;
     
     // Ask for missing info
     const questions = [];
@@ -74,12 +76,27 @@ async function generateCommand(options) {
       });
     }
     
+    // Ask for AI provider
+    if (!aiProvider) {
+      questions.push({
+        type: 'list',
+        name: 'aiProvider',
+        message: 'Which AI assistant will you use?',
+        choices: getProviderChoices(),
+        default: 'cursor'
+      });
+    }
+    
     if (questions.length > 0) {
       const answers = await inquirer.prompt(questions);
       projectName = projectName || answers.projectName;
       ideaFile = ideaFile || answers.ideaFile;
       outputDir = outputDir || answers.outputDir;
+      aiProvider = aiProvider || answers.aiProvider;
     }
+    
+    // Get provider configuration
+    const provider = getProvider(aiProvider);
     
     outputDir = path.resolve(outputDir);
     
@@ -93,9 +110,13 @@ async function generateCommand(options) {
       process.exit(1);
     }
     
-    // Ensure output directory and .prompt-cursor structure exist
+    // Get the dynamic directory for this provider
+    const promptDir = getPromptDirectory(aiProvider);
+    const dirs = getDirs(aiProvider);
+    
+    // Ensure output directory and prompt structure exist
     ensureDirectoryExists(outputDir);
-    await ensureDirectoryStructure(outputDir);
+    await ensureDirectoryStructure(outputDir, aiProvider);
     
     // Load template
     const templatePath = path.join(__dirname, '../prompts/prompt-generate-template.txt');
@@ -115,60 +136,66 @@ async function generateCommand(options) {
       );
     }
     
-    // Generate the prompt file in .prompt-cursor/prompts/
-    const promptFilePath = getFilePath(outputDir, 'PROMPT_GENERATE');
+    // Generate the prompt file in dynamic prompts directory
+    const promptFilePath = getFilePath(outputDir, 'PROMPT_GENERATE', aiProvider);
     
-    let fileContent = `# 🎯 ${projectName} - Prompt pour Cursor AI\n\n`;
+    let fileContent = `# 🎯 ${projectName} - Prompt pour ${provider.name}\n\n`;
+    fileContent += `**Assistant AI:** ${provider.icon} ${provider.name}\n`;
+    fileContent += `**Dossier:** \`${promptDir}/\`\n`;
+    fileContent += `**Fichier de règles:** \`${provider.rulesFile}\`\n\n`;
     fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    fileContent += `## 📋 Instructions (3 étapes)\n\n`;
+    fileContent += `## 📋 Instructions (4 étapes)\n\n`;
     fileContent += `1️⃣ **Copier** le prompt entre 🚀 START et 🏁 END  \n`;
-    fileContent += `2️⃣ **Coller** dans Cursor AI  \n`;
-    fileContent += `3️⃣ **Sauvegarder** les 4 fichiers dans \`.prompt-cursor/docs/\`  \n`;
+    fileContent += `2️⃣ **Coller** dans ${provider.name}  \n`;
+    fileContent += `3️⃣ **Sauvegarder** les 4 fichiers dans \`${promptDir}/docs/\`  \n`;
     fileContent += `4️⃣ **Lancer** : \`prompt-cursor build\`\n\n`;
     fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     fileContent += `## 🚀 START - COPIER TOUT CE QUI SUIT\n\n`;
     fileContent += promptContent;
     fileContent += `\n\n## 🏁 END - ARRÊTER DE COPIER\n\n`;
     fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    fileContent += `## 📁 Où sauvegarder les fichiers de Cursor\n\n`;
-    fileContent += `Cursor va générer 4 fichiers. Sauvegardez-les dans \`.prompt-cursor/docs/\` :\n\n`;
+    fileContent += `## 📁 Où sauvegarder les fichiers générés\n\n`;
+    fileContent += `${provider.name} va générer 4 fichiers. Sauvegardez-les dans \`${promptDir}/docs/\` :\n\n`;
     fileContent += `\`\`\`\n`;
-    fileContent += `.prompt-cursor/docs/project-request.md\n`;
-    fileContent += `.prompt-cursor/docs/cursor-rules.md\n`;
-    fileContent += `.prompt-cursor/docs/spec.md\n`;
-    fileContent += `.prompt-cursor/docs/implementation-plan.md\n`;
+    fileContent += `${promptDir}/docs/project-request.md\n`;
+    fileContent += `${promptDir}/docs/ai-rules.md\n`;
+    fileContent += `${promptDir}/docs/spec.md\n`;
+    fileContent += `${promptDir}/docs/implementation-plan.md\n`;
     fileContent += `\`\`\`\n\n`;
     fileContent += `## ⚡ Ensuite\n\n`;
     fileContent += `\`\`\`bash\n`;
-    fileContent += `prompt-cursor build  # Génère code-run.md + Instructions/\n`;
+    fileContent += `prompt-cursor build  # Génère ${provider.rulesFile} + code-run.md + Instructions/\n`;
     fileContent += `\`\`\`\n`;
     
     await fs.writeFile(promptFilePath, fileContent, 'utf-8');
       
-    console.log(chalk.green.bold('✅ Prompt generated successfully!\n'));
-      console.log(chalk.green(`File: .prompt-cursor/prompts/prompt-generate.md\n`));
+    console.log(chalk.green.bold(`✅ Prompt generated for ${provider.name}!\n`));
+    console.log(chalk.green(`File: ${promptDir}/prompts/prompt-generate.md`));
+    console.log(chalk.gray(`Directory: ${promptDir}/`));
+    console.log(chalk.gray(`Rules file: ${provider.rulesFile}\n`));
       
     // Load/update context
-      const context = loadContext(outputDir);
+    const context = await loadContext(outputDir, aiProvider);
     context.projectName = projectName;
     context.outputDir = outputDir;
+    context.aiProvider = aiProvider;
     context.workflow.type = 'generate';
     recordCommand(context, 'generate', options);
-    trackFile(context, '.prompt-cursor/prompts/prompt-generate.md', 'generated');
+    trackFile(context, `${promptDir}/prompts/prompt-generate.md`, 'generated');
     updateWorkflowPhase(context, 'prompt');
-      saveContext(context, outputDir);
+    saveContext(context, outputDir, aiProvider);
       
-      // Instructions
-      console.log(chalk.cyan.bold('📋 Next Steps:\n'));
-    console.log(chalk.white('  1. Open .prompt-cursor/prompts/prompt-generate.md'));
-    console.log(chalk.white('  2. Copy the prompt and paste it into Cursor AI'));
-    console.log(chalk.white('  3. Save each file in .prompt-cursor/docs/:'));
-    console.log(chalk.gray('     - .prompt-cursor/docs/project-request.md'));
-    console.log(chalk.gray('     - .prompt-cursor/docs/cursor-rules.md'));
-    console.log(chalk.gray('     - .prompt-cursor/docs/spec.md'));
-    console.log(chalk.gray('     - .prompt-cursor/docs/implementation-plan.md'));
+    // Instructions
+    console.log(chalk.cyan.bold('📋 Next Steps:\n'));
+    console.log(chalk.white(`  1. Open ${promptDir}/prompts/prompt-generate.md`));
+    console.log(chalk.white(`  2. Copy the prompt and paste it into ${provider.name}`));
+    console.log(chalk.white(`  3. Save each file in ${promptDir}/docs/:`));
+    console.log(chalk.gray(`     - ${promptDir}/docs/project-request.md`));
+    console.log(chalk.gray(`     - ${promptDir}/docs/ai-rules.md`));
+    console.log(chalk.gray(`     - ${promptDir}/docs/spec.md`));
+    console.log(chalk.gray(`     - ${promptDir}/docs/implementation-plan.md`));
     console.log(chalk.white('  4. Run: prompt-cursor build'));
-    console.log(chalk.gray('     → This generates code-run.md + Instructions/\n'));
+    console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/\n`));
       
     console.log(chalk.green('✨ All files will be in:'), chalk.bold(outputDir + '/\n'));
     

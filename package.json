@@ -1,8 +1,8 @@
 {
 	"name": "@abdel-akh/prompt-cursor-bundle",
-	"version": "1.2.2",
+	"version": "1.3.0",
 	"author": "Abderrahim Akh",
-	"description": "Prompt Cursor Bundle - Professional project structuring tool for Cursor AI",
+	"description": "Universal AI Prompt CLI - Works with Cursor, Claude, Windsurf, and GitHub Copilot",
 	"main": "src/index.js",
 	"bin": {
 		"prompt-cursor": "./bin/cli.js",
@@ -19,11 +19,15 @@
 		"promptcore",
 		"bundle",
 		"cursor",
+		"claude",
+		"windsurf",
+		"copilot",
 		"ai",
 		"prompts",
 		"development",
 		"workflow",
-		"project-generator"
+		"project-generator",
+		"cypress"
 	],
 	"license": "MIT",
 	"repository": {

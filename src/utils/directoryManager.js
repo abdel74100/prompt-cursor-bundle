@@ -1,57 +1,70 @@
 const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
+const { getProvider, getProviderDirs, getPromptDirectory } = require('./aiProviders');
 
 /**
- * Directory structure for Prompt Cursor Bundle
+ * Default directory (cursor) for backward compatibility
  */
-const PROMPTCORE_DIR = '.promptcore';
-const DIRS = {
-  ROOT: PROMPTCORE_DIR,
-  PROMPTS: path.join(PROMPTCORE_DIR, 'prompts'),
-  DOCS: path.join(PROMPTCORE_DIR, 'docs'),
-  WORKFLOW: path.join(PROMPTCORE_DIR, 'workflow'),
-  INSTRUCTIONS: path.join(PROMPTCORE_DIR, 'workflow', 'Instructions')
-};
+const DEFAULT_PROVIDER = 'cursor';
 
 /**
- * File paths mapping
+ * Get directory structure for a provider
+ * @param {string} providerKey - Provider key (cursor, claude, windsurf, copilot)
+ * @returns {Object} Directory paths
  */
-const FILE_PATHS = {
-  // Context file
-  CONTEXT: path.join(PROMPTCORE_DIR, '.promptcore-context.json'),
+function getDirs(providerKey = DEFAULT_PROVIDER) {
+  return getProviderDirs(providerKey);
+}
+
+/**
+ * File paths mapping (dynamic based on provider)
+ * @param {string} providerKey - Provider key
+ * @returns {Object} File paths
+ */
+function getFilePaths(providerKey = DEFAULT_PROVIDER) {
+  const dirs = getDirs(providerKey);
+  const provider = getProvider(providerKey);
   
-  // Prompts
-  PROMPT_GENERATE: path.join(DIRS.PROMPTS, 'prompt-generate.md'),
-  STEP1_PROMPT: path.join(DIRS.PROMPTS, 'step1-prompt.md'),
-  STEP2_PROMPT: path.join(DIRS.PROMPTS, 'step2-prompt.md'),
-  STEP3_PROMPT: path.join(DIRS.PROMPTS, 'step3-prompt.md'),
-  STEP4_PROMPT: path.join(DIRS.PROMPTS, 'step4-prompt.md'),
-  
-  // Documentation (from Cursor)
-  PROJECT_REQUEST: path.join(DIRS.DOCS, 'project-request.md'),
-  CURSOR_RULES_DOC: path.join(DIRS.DOCS, 'cursor-rules.md'),
-  SPEC: path.join(DIRS.DOCS, 'spec.md'),
-  IMPLEMENTATION_PLAN: path.join(DIRS.DOCS, 'implementation-plan.md'),
-  
-  // Workflow
-  CODE_RUN: path.join(DIRS.WORKFLOW, 'code-run.md'),
-  
-  // Root files (need to be at root for Cursor)
-  CURSORRULES: '.cursorrules'
-};
+  return {
+    // Context file
+    CONTEXT: path.join(dirs.ROOT, `.${providerKey}-context.json`),
+    
+    // Prompts
+    PROMPT_GENERATE: path.join(dirs.PROMPTS, 'prompt-generate.md'),
+    STEP1_PROMPT: path.join(dirs.PROMPTS, 'step1-prompt.md'),
+    STEP2_PROMPT: path.join(dirs.PROMPTS, 'step2-prompt.md'),
+    STEP3_PROMPT: path.join(dirs.PROMPTS, 'step3-prompt.md'),
+    STEP4_PROMPT: path.join(dirs.PROMPTS, 'step4-prompt.md'),
+    
+    // Documentation (from AI)
+    PROJECT_REQUEST: path.join(dirs.DOCS, 'project-request.md'),
+    AI_RULES_DOC: path.join(dirs.DOCS, 'ai-rules.md'),
+    SPEC: path.join(dirs.DOCS, 'spec.md'),
+    IMPLEMENTATION_PLAN: path.join(dirs.DOCS, 'implementation-plan.md'),
+    
+    // Workflow
+    CODE_RUN: path.join(dirs.WORKFLOW, 'code-run.md'),
+    
+    // Root files (depends on provider)
+    RULES_FILE: provider.rulesFile
+  };
+}
 
 /**
  * Ensure directory structure exists
  * @param {string} projectDir - Project directory path
+ * @param {string} providerKey - Provider key
  */
-async function ensureDirectoryStructure(projectDir) {
+async function ensureDirectoryStructure(projectDir, providerKey = DEFAULT_PROVIDER) {
+  const dirs = getDirs(providerKey);
+  
   const dirsToCreate = [
-    path.join(projectDir, DIRS.ROOT),
-    path.join(projectDir, DIRS.PROMPTS),
-    path.join(projectDir, DIRS.DOCS),
-    path.join(projectDir, DIRS.WORKFLOW),
-    path.join(projectDir, DIRS.INSTRUCTIONS)
+    path.join(projectDir, dirs.ROOT),
+    path.join(projectDir, dirs.PROMPTS),
+    path.join(projectDir, dirs.DOCS),
+    path.join(projectDir, dirs.WORKFLOW),
+    path.join(projectDir, dirs.INSTRUCTIONS)
   ];
   
   for (const dir of dirsToCreate) {
@@ -69,10 +82,12 @@ async function ensureDirectoryStructure(projectDir) {
  * Get full path for a file
  * @param {string} projectDir - Project directory
  * @param {string} fileKey - Key from FILE_PATHS
+ * @param {string} providerKey - Provider key
  * @returns {string} Full file path
  */
-function getFilePath(projectDir, fileKey) {
-  const relativePath = FILE_PATHS[fileKey];
+function getFilePath(projectDir, fileKey, providerKey = DEFAULT_PROVIDER) {
+  const filePaths = getFilePaths(providerKey);
+  const relativePath = filePaths[fileKey];
   if (!relativePath) {
     throw new Error(`Unknown file key: ${fileKey}`);
   }
@@ -80,22 +95,24 @@ function getFilePath(projectDir, fileKey) {
 }
 
 /**
- * Clean up .promptcore directory
+ * Clean up prompt directory
  * @param {string} projectDir - Project directory
+ * @param {string} providerKey - Provider key
  * @param {boolean} keepContext - Whether to keep context file
  */
-async function cleanDirectory(projectDir, keepContext = false) {
-  const promptcoreDir = path.join(projectDir, PROMPTCORE_DIR);
+async function cleanDirectory(projectDir, providerKey = DEFAULT_PROVIDER, keepContext = false) {
+  const dirs = getDirs(providerKey);
+  const promptDir = path.join(projectDir, dirs.ROOT);
   
   try {
-    const stats = await fs.stat(promptcoreDir);
+    const stats = await fs.stat(promptDir);
     if (!stats.isDirectory()) {
       return false;
     }
     
     if (keepContext) {
       // Save context file
-      const contextPath = path.join(promptcoreDir, '.promptcore-context.json');
+      const contextPath = path.join(promptDir, `.${providerKey}-context.json`);
       let contextData = null;
       try {
         contextData = await fs.readFile(contextPath, 'utf-8');
@@ -104,16 +121,16 @@ async function cleanDirectory(projectDir, keepContext = false) {
       }
       
       // Remove directory
-      await fs.rm(promptcoreDir, { recursive: true, force: true });
+      await fs.rm(promptDir, { recursive: true, force: true });
       
       // Recreate with context if it existed
       if (contextData) {
-        await ensureDirectoryStructure(projectDir);
+        await ensureDirectoryStructure(projectDir, providerKey);
         await fs.writeFile(contextPath, contextData);
       }
     } else {
       // Remove everything
-      await fs.rm(promptcoreDir, { recursive: true, force: true });
+      await fs.rm(promptDir, { recursive: true, force: true });
     }
     
     return true;
@@ -126,13 +143,15 @@ async function cleanDirectory(projectDir, keepContext = false) {
 }
 
 /**
- * Check if .promptcore directory exists
+ * Check if prompt directory exists
  * @param {string} projectDir - Project directory
+ * @param {string} providerKey - Provider key
  * @returns {boolean}
  */
-async function promptcoreExists(projectDir) {
+async function promptDirExists(projectDir, providerKey = DEFAULT_PROVIDER) {
+  const dirs = getDirs(providerKey);
   try {
-    const stats = await fs.stat(path.join(projectDir, PROMPTCORE_DIR));
+    const stats = await fs.stat(path.join(projectDir, dirs.ROOT));
     return stats.isDirectory();
   } catch (error) {
     return false;
@@ -140,13 +159,34 @@ async function promptcoreExists(projectDir) {
 }
 
 /**
+ * Detect which provider directory exists in project
+ * @param {string} projectDir - Project directory
+ * @returns {string|null} Provider key or null
+ */
+async function detectProvider(projectDir) {
+  const providers = ['cursor', 'claude', 'windsurf', 'copilot'];
+  
+  for (const provider of providers) {
+    if (await promptDirExists(projectDir, provider)) {
+      return provider;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Get directory info for display
  * @param {string} projectDir - Project directory
+ * @param {string} providerKey - Provider key
  * @returns {object} Directory information
  */
-async function getDirectoryInfo(projectDir) {
+async function getDirectoryInfo(projectDir, providerKey = DEFAULT_PROVIDER) {
+  const dirs = getDirs(providerKey);
   const info = {
     exists: false,
+    provider: providerKey,
+    directory: dirs.ROOT,
     prompts: { count: 0, files: [] },
     docs: { count: 0, files: [] },
     workflow: { count: 0, files: [] },
@@ -155,18 +195,18 @@ async function getDirectoryInfo(projectDir) {
   };
   
   try {
-    info.exists = await promptcoreExists(projectDir);
+    info.exists = await promptDirExists(projectDir, providerKey);
     if (!info.exists) return info;
     
     // Count files in each directory
-    const dirs = [
-      { key: 'prompts', path: path.join(projectDir, DIRS.PROMPTS) },
-      { key: 'docs', path: path.join(projectDir, DIRS.DOCS) },
-      { key: 'workflow', path: path.join(projectDir, DIRS.WORKFLOW) },
-      { key: 'instructions', path: path.join(projectDir, DIRS.INSTRUCTIONS) }
+    const directories = [
+      { key: 'prompts', path: path.join(projectDir, dirs.PROMPTS) },
+      { key: 'docs', path: path.join(projectDir, dirs.DOCS) },
+      { key: 'workflow', path: path.join(projectDir, dirs.WORKFLOW) },
+      { key: 'instructions', path: path.join(projectDir, dirs.INSTRUCTIONS) }
     ];
     
-    for (const dir of dirs) {
+    for (const dir of directories) {
       try {
         const files = await fs.readdir(dir.path);
         const validFiles = files.filter(f => !f.startsWith('.') && f.endsWith('.md'));
@@ -186,16 +226,19 @@ async function getDirectoryInfo(projectDir) {
 /**
  * Display directory structure
  * @param {string} projectDir - Project directory
+ * @param {string} providerKey - Provider key
  */
-async function displayStructure(projectDir) {
-  const info = await getDirectoryInfo(projectDir);
+async function displayStructure(projectDir, providerKey = DEFAULT_PROVIDER) {
+  const info = await getDirectoryInfo(projectDir, providerKey);
+  const dirs = getDirs(providerKey);
+  const provider = getProvider(providerKey);
   
   if (!info.exists) {
-    console.log(chalk.yellow('📁 .promptcore/ directory not found'));
+    console.log(chalk.yellow(`📁 ${dirs.ROOT}/ directory not found`));
     return;
   }
   
-  console.log(chalk.cyan('\n📁 .promptcore/ Structure:'));
+  console.log(chalk.cyan(`\n📁 ${dirs.ROOT}/ Structure (${provider.icon} ${provider.name}):`));
   console.log(chalk.gray('├── ') + chalk.blue('prompts/') + chalk.gray(` (${info.prompts.count} files)`));
   info.prompts.files.forEach(f => {
     console.log(chalk.gray('│   ├── ') + f);
@@ -221,19 +264,18 @@ async function displayStructure(projectDir) {
     });
   }
   
-  console.log(chalk.gray('└── ') + '.promptcore-context.json\n');
+  console.log(chalk.gray('└── ') + `.${providerKey}-context.json\n`);
 }
 
 module.exports = {
-  PROMPTCORE_DIR,
-  DIRS,
-  FILE_PATHS,
+  DEFAULT_PROVIDER,
+  getDirs,
+  getFilePaths,
   ensureDirectoryStructure,
   getFilePath,
   cleanDirectory,
-  promptcoreExists,
+  promptDirExists,
+  detectProvider,
   getDirectoryInfo,
   displayStructure
 };
-
-

@@ -5,6 +5,30 @@ Toutes les modifications notables de ce projet seront documentées ici.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
 
+## [1.3.0] - 2024-11-27
+
+### Ajouté
+- 🤖 **Support Multi-AI** : Compatible avec Cursor, Claude, Windsurf et GitHub Copilot
+- 📁 **Dossiers dynamiques** : Chaque AI a son propre dossier
+  - Cursor → `.prompt-cursor/`
+  - Claude → `.prompt-claude/`
+  - Windsurf → `.prompt-windsurf/`
+  - Copilot → `.prompt-copilot/`
+- 🎯 **Tests Cypress** : Génération automatique de tests E2E par étape
+- ⚙️ **Option `--provider`** : Choisir l'AI directement en ligne de commande
+- 🔍 **Auto-détection** : Le CLI détecte automatiquement le provider utilisé
+
+### Changé
+- 📄 **ai-rules.md** : Remplace `cursor-rules.md` pour être générique
+- 📦 **Fichiers de règles dynamiques** :
+  - Cursor → `.cursorrules`
+  - Claude → `CLAUDE.md`
+  - Windsurf → `.windsurfrules`
+  - Copilot → `.github/copilot-instructions.md`
+- 📊 **Context par provider** : Chaque AI a son propre fichier de contexte
+
+---
+
 ## [1.2.0] - 2024-11-24
 
 ### Ajouté
