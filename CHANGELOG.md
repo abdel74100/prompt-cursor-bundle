@@ -1,4 +1,4 @@
-# Changelog - Prompt Cursor Bundle
+# Changelog - Prompt Cursor Bundle (Multi-AI)
 
 Toutes les modifications notables de ce projet seront documentées ici.
 

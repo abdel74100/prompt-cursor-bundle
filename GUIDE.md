@@ -1,4 +1,4 @@
-# 📖 Guide Complet - Prompt Cursor Bundle
+# 📖 Guide Complet - Prompt Cursor Bundle (Multi-AI)
 
 > **De l'idée au projet structuré en 2 commandes !** 🚀
 
@@ -8,7 +8,7 @@
 
 Un outil qui transforme votre idée en projet professionnel structuré, en utilisant votre assistant AI préféré (Cursor, Claude, Windsurf, Copilot) pour générer toute la documentation nécessaire.
 
-### 🌟 Le Workflow Prompt Cursor Bundle
+### 🌟 Le Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

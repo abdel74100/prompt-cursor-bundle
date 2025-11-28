@@ -1,4 +1,4 @@
-# 🚀 Prompt Cursor Bundle
+# 🚀 Prompt Cursor Bundle (Multi-AI)
 
 > **Le bundle universel de structuration de projets pour assistants AI** ⚡
 > 
@@ -115,7 +115,7 @@ mon-projet/
 │   ├── workflow/                 # Workflow de développement
 │   │   ├── code-run.md
 │   │   └── Instructions/
-│   └── .prompt-cursor-context.json
+│   └── .{provider}-context.json
 ├── .cursorrules                  # Cursor
 ├── CLAUDE.md                     # ou Claude
 ├── .windsurfrules                # ou Windsurf
@@ -160,18 +160,16 @@ npm link  # Dans le dossier du CLI
 ```
 
 ### Problème : "No response files found"
-Assurez-vous d'avoir sauvegardé les fichiers générés par Cursor avant de lancer `build`.
+Assurez-vous d'avoir sauvegardé les fichiers générés par votre AI avant de lancer `build`.
 
 ### Problème : "0 steps in plan"
 Vérifiez que votre `implementation-plan.md` suit le format attendu avec `- [ ] Step X:`.
 
 ---
 
----
-
 ## 📄 License
 
-MIT © [Your Name]
+MIT © Abderrahim Akh
 
 ---
 

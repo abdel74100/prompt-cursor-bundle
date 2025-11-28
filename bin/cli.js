@@ -13,7 +13,7 @@ const packageJson = require('../package.json');
 
 program
   .name('prompt-cursor')
-  .description('Prompt Cursor Bundle - Professional project structuring tool for AI assistants')
+  .description('Prompt Cursor Bundle (Multi-AI) - Works with Cursor, Claude, Windsurf & Copilot')
   .version(packageJson.version);
 
 // Generate command
