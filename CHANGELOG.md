@@ -5,7 +5,7 @@ Toutes les modifications notables de ce projet seront documentées ici.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
 
-## [1.4.0] - 2024-11-28
+## [1.4.1] - 2024-11-28
 
 ### Ajouté
 - 🤖 **Mode Auto** : Nouvelle option `--auto` pour `generate`
@@ -13,6 +13,7 @@ et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
   - Surveillance du dossier docs pour détecter les fichiers sauvegardés
   - Lancement automatique de `build` quand les 4 fichiers sont présents
 - 📋 **Clipboard natif** : Support macOS, Windows et Linux (pbcopy, clip, xclip)
+- 📄 **example-idea.md** : Fichier d'exemple pour démarrer rapidement
 
 ### Changé
 - 🏷️ **Branding** : Ajout de "(Multi-AI)" au nom pour clarifier le support multi-assistant
