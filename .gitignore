@@ -42,7 +42,7 @@ build/
 
 # Exemples et fichiers de développement
 exemple-*.md
-example-*.md
+!example-idea.md
 MIGRATION-*.md
 FINAL-*.md
 TEST-*.md
