@@ -25,6 +25,7 @@ program
   .option('-i, --idea-file <path>', 'Path to your idea file (required)')
   .option('-o, --output <path>', 'Output directory', './my-project')
   .option('-p, --provider <provider>', 'AI provider (cursor, claude, windsurf, copilot)')
+  .option('-a, --auto', 'Auto mode: watch for files and run build automatically')
   .action(async (options) => {
     await generateCommand(options);
   });

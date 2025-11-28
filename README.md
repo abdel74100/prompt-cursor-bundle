@@ -4,7 +4,7 @@
 > 
 > Transformez votre idée en projet structuré en 2 minutes avec Cursor, Claude, Windsurf ou Copilot !
 
-[![Version](https://img.shields.io/badge/version-1.3.2-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@abdel-akh/prompt-cursor-bundle.svg)](https://www.npmjs.com/package/@abdel-akh/prompt-cursor-bundle)
@@ -37,24 +37,18 @@ Un outil CLI universel qui :
 ## 🎬 Démo Rapide - En 3 Commandes
 
 ```bash
-# 1. Générer le prompt intelligent (choisir votre AI assistant)
+# 🆕 Mode Auto (recommandé) - Une seule commande !
+prompt-cursor generate -i idea.md -o ./mon-projet --auto
+
+# Le CLI va :
+# 1. Générer le prompt et le copier dans le presse-papiers 📋
+# 2. Attendre que vous sauvegardez les 4 fichiers ⏳
+# 3. Lancer build automatiquement 🚀
+
+# OU Mode manuel (étape par étape)
 prompt-cursor generate -i idea.md -o ./mon-projet
-
-# ? Which AI assistant will you use?
-#   > 🎯 Cursor
-#     🤖 Claude
-#     🏄 Windsurf
-#     🐙 GitHub Copilot
-
-# 2. [Copier le prompt dans votre AI assistant]
-#    Sauvegarder les 4 fichiers dans .prompt-{provider}/docs/
-
-# 3. Générer le workflow de développement
+# [Copier prompt → AI → Sauvegarder fichiers]
 prompt-cursor build
-# → Génère automatiquement le bon fichier de règles selon votre choix !
-
-# 4. Suivre et marquer la progression
-prompt-cursor complete
 
 # C'est tout ! Projet prêt ! 🎉
 ```
@@ -93,6 +87,7 @@ cd ./projet && prompt-cursor build
 | Commande | Alias | Description |
 |----------|-------|-------------|
 | `prompt-cursor generate` | `pcb gen` | Génère prompt intelligent + versions compatibles |
+| `prompt-cursor generate --auto` | `pcb gen -a` | 🆕 Mode auto : copie + watch + build automatique |
 | `prompt-cursor build` | `pcb build` | Parse et génère workflow |
 | `prompt-cursor complete` | `pcb done` | Marque étape terminée |
 | `prompt-cursor context` | `pcb ctx` | Affiche dashboard |

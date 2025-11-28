@@ -7,6 +7,8 @@ const { loadContext, saveContext, recordCommand, trackFile, updateWorkflowPhase 
 const { ensureDirectoryStructure, getFilePath, getDirs } = require('../utils/directoryManager');
 const { generateVersionsSection } = require('../utils/versionCompatibility');
 const { getProvider, getProviderChoices, getPromptDirectory } = require('../utils/aiProviders');
+const { extractPromptContent, copyToClipboard, watchForFiles } = require('../utils/fileWatcher');
+const buildCommand = require('./build');
 
 /**
  * Load content from file
@@ -200,6 +202,40 @@ async function generateCommand(options) {
     console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/\n`));
       
     console.log(chalk.green('✨ All files will be in:'), chalk.bold(outputDir + '/\n'));
+    
+    // Auto mode: copy to clipboard and watch for files
+    if (options.auto) {
+      console.log(chalk.blue.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+      console.log(chalk.blue.bold('🤖 Mode Auto activé\n'));
+      
+      // Extract prompt content between START and END
+      const promptToClipboard = extractPromptContent(fileContent);
+      
+      if (promptToClipboard) {
+        const copied = await copyToClipboard(promptToClipboard);
+        if (copied) {
+          console.log(chalk.green('📋 Prompt copié dans le presse-papiers !'));
+          console.log(chalk.gray('   (Contenu entre 🚀 START et 🏁 END uniquement)\n'));
+        } else {
+          console.log(chalk.yellow('⚠️  Impossible de copier dans le presse-papiers.'));
+          console.log(chalk.gray('   Copiez manuellement le contenu du fichier.\n'));
+        }
+      }
+      
+      console.log(chalk.cyan(`👉 Collez le prompt dans ${provider.name} et sauvegardez les fichiers.\n`));
+      
+      // Watch for files
+      const docsDir = path.join(outputDir, promptDir, 'docs');
+      
+      watchForFiles(docsDir, async () => {
+        console.log(chalk.blue.bold('\n🔨 Lancement automatique de build...\n'));
+        
+        // Run build command
+        await buildCommand({ output: outputDir });
+        
+        console.log(chalk.green.bold('\n✅ Mode auto terminé ! Votre projet est prêt.\n'));
+      });
+    }
     
   } catch (error) {
     console.error(chalk.red.bold('\n❌ Error:'));
