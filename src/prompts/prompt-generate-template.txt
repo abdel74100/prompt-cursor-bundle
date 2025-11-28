@@ -12,7 +12,7 @@ Generate the following files in order, ensuring consistency and quality across a
 
 ## File 1: project-request.md
 
-**IMPORTANT: Save this file as `.prompt-cursor/docs/project-request.md`**
+**IMPORTANT: Save this file as `{{PROMPT_DIR}}/docs/project-request.md`**
 
 Create a comprehensive project request document that includes:
 
@@ -28,7 +28,7 @@ Format: Professional markdown with clear sections.
 
 ## File 2: ai-rules.md  
 
-**IMPORTANT: Save this file as `.prompt-cursor/docs/ai-rules.md`**
+**IMPORTANT: Save this file as `{{PROMPT_DIR}}/docs/ai-rules.md`**
 (Note: It will be automatically copied to the appropriate rules file based on your AI assistant)
 
 Create AI assistant rules for this project including:
@@ -47,7 +47,7 @@ Format: Clear, actionable rules that any AI coding assistant can follow.
 
 ## File 3: spec.md
 
-**IMPORTANT: Save this file as `.prompt-cursor/docs/spec.md`**
+**IMPORTANT: Save this file as `{{PROMPT_DIR}}/docs/spec.md`**
 
 Create detailed technical specifications including:
 
@@ -67,7 +67,7 @@ Format: Technical markdown with code examples and diagrams where helpful.
 
 ## File 4: implementation-plan.md
 
-**IMPORTANT: Save this file as `.prompt-cursor/docs/implementation-plan.md`**
+**IMPORTANT: Save this file as `{{PROMPT_DIR}}/docs/implementation-plan.md`**
 
 Create a detailed implementation plan with:
 

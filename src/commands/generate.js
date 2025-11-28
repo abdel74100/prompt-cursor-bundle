@@ -125,8 +125,10 @@ async function generateCommand(options) {
     // Generate compatibility section based on idea content
     const versionsSection = generateVersionsSection(ideaContent);
     
-    // Replace {{IDEA}} with actual idea content and add versions section
-    let promptContent = template.replace('{{IDEA}}', ideaContent);
+    // Replace placeholders with actual content
+    let promptContent = template
+      .replace('{{IDEA}}', ideaContent)
+      .replace(/\{\{PROMPT_DIR\}\}/g, promptDir);
     
     // Insert versions section after the idea
     if (versionsSection) {

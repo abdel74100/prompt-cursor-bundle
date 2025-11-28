@@ -24,14 +24,14 @@ prompt-cursor --version
 npm publish --access public
 
 # 5. Vérifier la publication
-npm view @aakroh/prompt-cursor-bundle
+npm view @abdel-akh/prompt-cursor-bundle
 ```
 
 ### Installation pour les utilisateurs
 
 ```bash
 # Installation globale
-npm install -g @aakroh/prompt-cursor-bundle
+npm install -g @abdel-akh/prompt-cursor-bundle
 
 # Utilisation
 prompt-cursor generate -i idea.md
@@ -102,8 +102,8 @@ git push && git push --tags
 ## 🌐 Après la publication
 
 ### Vérification
-1. Visitez : https://www.npmjs.com/package/@aakroh/prompt-cursor-bundle
-2. Testez l'installation : `npm install -g @aakroh/prompt-cursor-bundle`
+1. Visitez : https://www.npmjs.com/package/@abdel-akh/prompt-cursor-bundle
+2. Testez l'installation : `npm install -g @abdel-akh/prompt-cursor-bundle`
 3. Vérifiez les statistiques de téléchargement
 
 ### Maintenance
@@ -124,19 +124,19 @@ git push && git push --tags
 
 ```bash
 # Voir les informations du package
-npm view @aakroh/prompt-cursor-bundle
+npm view @abdel-akh/prompt-cursor-bundle
 
 # Voir toutes les versions publiées
-npm view @aakroh/prompt-cursor-bundle versions
+npm view @abdel-akh/prompt-cursor-bundle versions
 
 # Dépublier une version (attention !)
-npm unpublish @aakroh/prompt-cursor-bundle@1.0.0
+npm unpublish @abdel-akh/prompt-cursor-bundle@1.0.0
 
 # Voir qui peut publier
-npm owner ls @aakroh/prompt-cursor-bundle
+npm owner ls @abdel-akh/prompt-cursor-bundle
 
 # Ajouter un collaborateur
-npm owner add <username> @aakroh/prompt-cursor-bundle
+npm owner add <username> @abdel-akh/prompt-cursor-bundle
 ```
 
 ---
@@ -148,7 +148,7 @@ npm owner add <username> @aakroh/prompt-cursor-bundle
 - Après 72h, impossible de dépublier une version téléchargée
 - Ne jamais dépublier une version utilisée en production
 
-### Scoped packages (@aakroh/prompt-cursor-bundle)
+### Scoped packages (@abdel-akh/prompt-cursor-bundle)
 - Nécessite `--access public` pour la publication
 - Gratuit pour les packages publics
 - Organisé sous votre scope (@prompt-cursor)
@@ -164,4 +164,4 @@ npm owner add <username> @aakroh/prompt-cursor-bundle
 
 Votre package est maintenant disponible pour la communauté ! 
 
-Lien npm : https://www.npmjs.com/package/@aakroh/prompt-cursor-bundle
+Lien npm : https://www.npmjs.com/package/@abdel-akh/prompt-cursor-bundle

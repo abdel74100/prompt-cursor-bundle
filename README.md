@@ -4,10 +4,10 @@
 > 
 > Transformez votre idée en projet structuré en 2 minutes avec Cursor, Claude, Windsurf ou Copilot !
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
+[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![npm](https://img.shields.io/npm/v/@aakroh/prompt-cursor-bundle.svg)](https://www.npmjs.com/package/@aakroh/prompt-cursor-bundle)
+[![npm](https://img.shields.io/npm/v/@abdel-akh/prompt-cursor-bundle.svg)](https://www.npmjs.com/package/@abdel-akh/prompt-cursor-bundle)
 
 ---
 
@@ -47,7 +47,7 @@ prompt-cursor generate -i idea.md -o ./mon-projet
 #     🐙 GitHub Copilot
 
 # 2. [Copier le prompt dans votre AI assistant]
-#    Sauvegarder les 4 fichiers dans .prompt-cursor/docs/
+#    Sauvegarder les 4 fichiers dans .prompt-{provider}/docs/
 
 # 3. Générer le workflow de développement
 prompt-cursor build
@@ -64,7 +64,7 @@ prompt-cursor complete
 ## 📦 Installation
 
 ```bash
-npm install -g @aakroh/prompt-cursor-bundle
+npm install -g @abdel-akh/prompt-cursor-bundle
 ```
 
 ---
@@ -78,7 +78,7 @@ echo "Todo app avec React + TailwindCSS" > idea.md
 # Générer (choisir votre AI assistant)
 prompt-cursor generate -i idea.md -o ./projet
 
-# [Copier prompt → Votre AI Assistant → Sauvegarder dans .prompt-cursor/docs/]
+# [Copier prompt → Votre AI Assistant → Sauvegarder dans .prompt-{provider}/docs/]
 
 # Builder
 cd ./projet && prompt-cursor build
@@ -96,7 +96,7 @@ cd ./projet && prompt-cursor build
 | `prompt-cursor build` | `pcb build` | Parse et génère workflow |
 | `prompt-cursor complete` | `pcb done` | Marque étape terminée |
 | `prompt-cursor context` | `pcb ctx` | Affiche dashboard |
-| `prompt-cursor clean` | - | Nettoie .prompt-cursor/ |
+| `prompt-cursor clean` | - | Nettoie .prompt-{provider}/ |
 
 ---
 
@@ -104,7 +104,7 @@ cd ./projet && prompt-cursor build
 
 ```
 mon-projet/
-├── .prompt-cursor/               # 📦 Dossier dédié (caché)
+├── .prompt-{provider}/           # 📦 Dossier dédié (cursor, claude, windsurf, copilot)
 │   ├── prompts/                  # Prompts générés
 │   │   └── prompt-generate.md
 │   ├── docs/                     # Documentation AI

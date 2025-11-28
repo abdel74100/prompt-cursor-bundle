@@ -6,7 +6,7 @@
 
 ## 🎯 Qu'est-ce que Prompt Cursor Bundle ?
 
-Un outil qui transforme votre idée en projet professionnel structuré, en utilisant l'IA de Cursor pour générer toute la documentation nécessaire.
+Un outil qui transforme votre idée en projet professionnel structuré, en utilisant votre assistant AI préféré (Cursor, Claude, Windsurf, Copilot) pour générer toute la documentation nécessaire.
 
 ### 🌟 Le Workflow Prompt Cursor Bundle
 
@@ -19,16 +19,16 @@ Un outil qui transforme votre idée en projet professionnel structuré, en utili
                  │ prompt-cursor generate
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  🎯 UN Prompt Intelligent (.prompt-cursor/prompts/)         │
-│  Contient toutes les instructions pour Cursor AI            │
+│  🎯 UN Prompt Intelligent (.prompt-{provider}/prompts/)     │
+│  Contient toutes les instructions pour votre AI             │
 └────────────────┬────────────────────────────────────────────┘
                  │
-                 │ Copier/Coller dans Cursor AI
+                 │ Copier/Coller dans votre AI assistant
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  🤖 Cursor AI génère TOUT en 1 conversation                 │
+│  🤖 Votre AI génère TOUT en 1 conversation                  │
 │  • project-request.md (vision métier)                       │
-│  • .cursorrules (standards de code)                         │
+│  • ai-rules.md → copié vers le bon fichier de règles        │
 │  • spec.md (architecture technique)                         │
 │  • implementation-plan.md (roadmap)                         │
 └────────────────┬────────────────────────────────────────────┘
@@ -37,8 +37,8 @@ Un outil qui transforme votre idée en projet professionnel structuré, en utili
                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  📊 Workflow Intelligent Généré                             │
-│  • .prompt-cursor/workflow/code-run.md                      │
-│  • .prompt-cursor/workflow/Instructions/                    │
+│  • .prompt-{provider}/workflow/code-run.md                  │
+│  • .prompt-{provider}/workflow/Instructions/                │
 └────────────────┬────────────────────────────────────────────┘
                  │
                  ▼
@@ -75,16 +75,16 @@ prompt-cursor generate -i idea.md -o ./todo-app
 pcb gen -i idea.md -o ./todo-app
 ```
 
-**Résultat :** Un fichier `.prompt-cursor/prompts/prompt-generate.md` qui contient UN prompt optimisé
+**Résultat :** Un fichier `.prompt-{provider}/prompts/prompt-generate.md` qui contient UN prompt optimisé
 
-### 3️⃣ Utilisez dans Cursor AI
+### 3️⃣ Utilisez dans votre AI assistant
 
-1. Ouvrez `./todo-app/.prompt-cursor/prompts/prompt-generate.md`
-2. Copiez le contenu entre les ```
-3. Collez dans Cursor AI
-4. Sauvegardez les 4 fichiers dans `.prompt-cursor/docs/`:
+1. Ouvrez `./todo-app/.prompt-{provider}/prompts/prompt-generate.md`
+2. Copiez le contenu entre 🚀 START et 🏁 END
+3. Collez dans votre assistant AI (Cursor, Claude, Windsurf, Copilot)
+4. Sauvegardez les 4 fichiers dans `.prompt-{provider}/docs/`:
    - `project-request.md`
-   - `cursor-rules.md`
+   - `ai-rules.md`
    - `spec.md`
    - `implementation-plan.md`
 
@@ -131,12 +131,12 @@ prompt-cursor generate -i weather-idea.md -o ./weather-app
     └─→ Génère prompt-generate.md
 ```
 
-### 🤖 Étape 3 : Cursor AI
+### 🤖 Étape 3 : Votre AI assistant
 
-**Dans Cursor, après avoir collé le prompt :**
+**Dans votre assistant AI, après avoir collé le prompt :**
 
 ```
-🤖 Cursor: "Je vais créer les 4 fichiers de documentation..."
+🤖 AI: "Je vais créer les 4 fichiers de documentation..."
 
 === FILE: project-request.md ===
 # Weather Suggest - Project Request
@@ -148,7 +148,7 @@ Modern weather application with real-time data...
 - Travelers planning trips
 - Daily commuters...
 
-=== FILE: .cursorrules ===
+=== FILE: ai-rules.md ===
 # Technology Stack
 - React 18.3
 - Vite 5.4
@@ -186,16 +186,19 @@ prompcore build
 
 ```
 mon-projet/
-├── 📄 prompt-generate.md      ← Généré par 'generate'
-├── 📄 project-request.md      ← Généré par Cursor (QUOI)
-├── 📄 .cursorrules            ← Généré par Cursor (COMMENT)
-├── 📄 spec.md                 ← Généré par Cursor (ARCHITECTURE)
-├── 📄 implementation-plan.md  ← Généré par Cursor (QUAND)
-├── 📄 code-run.md            ← Généré par 'build' (SUIVI)
-└── 📁 Instructions/          ← Généré par 'build' (DÉTAILS)
-    ├── instructions-step1.md
-    ├── instructions-step2.md
-    └── ...
+├── 📁 .prompt-{provider}/     ← Dossier dédié (cursor, claude, windsurf, copilot)
+│   ├── prompts/
+│   │   └── prompt-generate.md ← Généré par 'generate'
+│   ├── docs/
+│   │   ├── project-request.md ← Généré par votre AI (QUOI)
+│   │   ├── ai-rules.md        ← Généré par votre AI (COMMENT)
+│   │   ├── spec.md            ← Généré par votre AI (ARCHITECTURE)
+│   │   └── implementation-plan.md ← Généré par votre AI (QUAND)
+│   └── workflow/
+│       ├── code-run.md        ← Généré par 'build' (SUIVI)
+│       └── Instructions/      ← Généré par 'build' (DÉTAILS)
+├── .cursorrules               ← Ou CLAUDE.md, .windsurfrules, .github/copilot-instructions.md
+└── src/                       ← Votre code
 ```
 
 ### Rôle de chaque fichier
@@ -203,9 +206,9 @@ mon-projet/
 | Fichier | Rôle | Contient | Qui l'utilise |
 |---------|------|----------|---------------|
 | **project-request.md** | Vision métier | Objectifs, fonctionnalités, public | Product Owner |
-| **.cursorrules** | Standards code | Stack, conventions, patterns | Développeurs |
+| **ai-rules.md** → règles AI | Standards code | Stack, conventions, patterns | Développeurs |
 | **spec.md** | Architecture | Schémas, API, DB, sécurité | Architecte |
-| **implementation-plan.md** | Roadmap | Étapes, dépendances, temps | Chef de projet |
+| **implementation-plan.md** | Roadmap | Étapes, dépendances | Chef de projet |
 | **code-run.md** | Suivi | TODOs, tests, progression | Scrum Master |
 | **Instructions/** | Guides | Tâches détaillées par étape | Développeurs |
 
@@ -227,7 +230,7 @@ prompt-cursor context
 
 📋 Project Information:
   Name: project name
-  Created: 11/5/2025
+  AI Provider: Cursor
   
 🔄 Workflow Status:
   Type: ⭐ Generate (Recommended)
@@ -235,15 +238,14 @@ prompt-cursor context
 
 📈 Progress:
   1. Prompt Generation: ✅
-  2. Cursor AI Files: ✅
+  2. AI Files: ✅
   3. Build Process: ✅
   4. Development: ████░░░░░░░░ 35%
 
 📁 File Status:
-  ✅ idea.md
   ✅ prompt-generate.md
   ✅ project-request.md
-  ✅ .cursorrules
+  ✅ ai-rules.md → .cursorrules
   ✅ spec.md
   ✅ implementation-plan.md
   ✅ code-run.md
@@ -266,7 +268,7 @@ Une fois que vous avez tous vos fichiers, voici **exactement** comment procéder
 ```
 ✅ À UTILISER                    ❌ NE PAS UTILISER
 ─────────────                    ──────────────────
-.cursorrules                     implementation-plan.md (trop détaillé)
+Fichier de règles AI             implementation-plan.md (trop détaillé)
 Instructions/instructions-stepX  code-run.md (juste pour votre suivi)
 spec.md (au début seulement)     prompt-generate.md (déjà utilisé)
 ```
@@ -280,17 +282,17 @@ cd ./weather-suggest
 cursor .  # ou code . si vous utilisez Cursor comme VSCode
 ```
 
-#### 2️⃣ Dans le chat Cursor, glissez les fichiers
+#### 2️⃣ Dans le chat de votre AI, glissez les fichiers
 
 ```
-1. Glissez .cursorrules (une seule fois au début)
+1. Glissez votre fichier de règles (une seule fois au début)
 2. Glissez Instructions/instructions-step1.md
 ```
 
-#### 3️⃣ Donnez cette instruction à Cursor
+#### 3️⃣ Donnez cette instruction à votre AI
 
 ```
-En respectant les conventions définies dans .cursorrules, 
+En respectant les conventions définies dans le fichier de règles, 
 implémente les 3 tâches de l'étape 1 :
 
 1. Initialize Vite + React + TypeScript project
@@ -300,9 +302,9 @@ implémente les 3 tâches de l'étape 1 :
 Commence par la première tâche.
 ```
 
-#### 4️⃣ Cursor va générer le code
+#### 4️⃣ Votre AI va générer le code
 
-**Exemple de réponse Cursor :**
+**Exemple de réponse :**
 ```bash
 # Je vais initialiser le projet Vite avec React et TypeScript
 
@@ -333,13 +335,13 @@ Maintenant implémente la Task 2 : configure TailwindCSS
 
 ```
 ÉTAPE 1 (Project Setup)
-├── 📎 Fichiers à donner: .cursorrules + instructions-step1.md
+├── 📎 Fichiers à donner: règles AI + instructions-step1.md
 ├── 💬 "Implémente l'étape 1 avec les 3 tâches"
 ├── ✅ Valider chaque tâche
 └── 📝 Cocher dans code-run.md
 
 ÉTAPE 2 (Core Features)  
-├── 📎 Fichiers: instructions-step2.md (cursorrules déjà dans contexte)
+├── 📎 Fichiers: instructions-step2.md (règles déjà dans contexte)
 ├── 💬 "Implémente l'étape 2"
 ├── ✅ Tester les fonctionnalités
 └── 📝 Cocher dans code-run.md
@@ -356,7 +358,7 @@ Fais l'étape 1
 
 **✅ Précis et efficace :**
 ```
-En suivant les conventions de .cursorrules et les tâches définies 
+En suivant les conventions du fichier de règles et les tâches définies 
 dans instructions-step1.md, implémente le setup initial du projet.
 Commence par créer le projet Vite avec React et TypeScript.
 ```
@@ -386,11 +388,11 @@ Pour chaque étape:
 └───────────┬─────────────┘
             ▼
 ┌─────────────────────────┐
-│ 3. Donner à Cursor      │ ← .cursorrules + instructions
+│ 3. Donner à votre AI    │ ← règles AI + instructions
 └───────────┬─────────────┘
             ▼
 ┌─────────────────────────┐
-│ 4. Implémenter          │ ← Cursor génère le code
+│ 4. Implémenter          │ ← L'AI génère le code
 └───────────┬─────────────┘
             ▼
 ┌─────────────────────────┐
@@ -406,9 +408,9 @@ Pour chaque étape:
 
 | Erreur | Conséquence | Solution |
 |--------|-------------|----------|
-| Donner tous les fichiers d'un coup | Cursor est confus | Donner seulement l'étape courante |
+| Donner tous les fichiers d'un coup | L'AI est confus | Donner seulement l'étape courante |
 | Sauter des étapes | Dépendances manquantes | Suivre l'ordre de code-run.md |
-| Ignorer .cursorrules | Code incohérent | Toujours l'inclure au début |
+| Ignorer les règles AI | Code incohérent | Toujours les inclure au début |
 | Donner implementation-plan.md | Trop de détails | Utiliser Instructions/ à la place |
 
 ---
@@ -457,7 +459,7 @@ pcb done --step 3             # Direct
 - Marque l'étape actuelle comme terminée (✅)
 - Active automatiquement l'étape suivante (🟡)
 - Met à jour le contexte et les statistiques
-- Modifie `.prompt-cursor/workflow/code-run.md`
+- Modifie `.prompt-{provider}/workflow/code-run.md`
 
 ### 🧠 Parsing Intelligent
 
@@ -519,7 +521,7 @@ Stack: React + TypeScript + Supabase
 UI: TailwindCSS + Framer Motion
 ```
 
-### 🚀 Optimiser Cursor AI
+### 🚀 Optimiser votre AI assistant
 
 1. **Soyez précis** dans vos réponses
 2. **Donnez des exemples** quand possible
@@ -537,7 +539,7 @@ Le build s'adapte automatiquement à différents formats :
 ## 🐛 Troubleshooting
 
 ### "No response files found"
-→ Assurez-vous d'avoir sauvegardé les 4 fichiers de Cursor
+→ Assurez-vous d'avoir sauvegardé les 4 fichiers générés par votre AI
 
 ### "0 steps in plan"
 → Vérifiez le format de `implementation-plan.md`
@@ -553,13 +555,13 @@ Le build s'adapte automatiquement à différents formats :
 
 1. 📝 **Idée** → Écrivez votre vision dans `idea.md`
 2. 🎯 **Generate** → `prompt-cursor generate` crée un prompt intelligent avec versions compatibles
-3. 🤖 **Cursor** → Une seule conversation génère tous les fichiers
+3. 🤖 **Votre AI** → Une seule conversation génère tous les fichiers
 4. 🔨 **Build** → `prompt-cursor build` parse et crée le workflow de développement
 
 **Bonus :**
 5. ✅ **Complete** → `prompt-cursor complete` marque vos étapes terminées automatiquement
 
-**Résultat :** Un projet professionnel, structuré, sans erreurs de compatibilité, prêt à développer !
+**Résultat :** Un projet professionnel, structuré, sans erreurs de compatibilité, compatible avec Cursor, Claude, Windsurf ou Copilot !
 
 ---
 

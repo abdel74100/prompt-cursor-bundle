@@ -13,7 +13,7 @@ const packageJson = require('../package.json');
 
 program
   .name('prompt-cursor')
-  .description('Prompt Cursor Bundle - Professional project structuring tool for Cursor AI')
+  .description('Prompt Cursor Bundle - Professional project structuring tool for AI assistants')
   .version(packageJson.version);
 
 // Generate command
@@ -54,7 +54,7 @@ program
 // Clean command
 program
   .command('clean')
-  .description('Remove .promptcore/ directory and all generated files')
+  .description('Remove generated files directory (.prompt-cursor/, .prompt-claude/, etc.)')
   .option('-p, --path <path>', 'Path to project directory', '.')
   .option('-f, --force', 'Skip confirmation prompt')
   .option('-k, --keep-context', 'Keep context file')

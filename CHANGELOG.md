@@ -5,6 +5,16 @@ Toutes les modifications notables de ce projet seront documentées ici.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
 
+## [1.3.1] - 2024-11-28
+
+### Corrigé
+- 🔧 **Standardisation des références** : Toutes les références hardcodées remplacées par des placeholders dynamiques
+- 📄 **Template prompt** : Utilise maintenant `{{PROMPT_DIR}}` au lieu de `.prompt-cursor/` hardcodé
+- 📚 **Documentation** : README et GUIDE mis à jour pour être génériques (multi-AI)
+- 🔗 **Liens npm** : Correction des références `@aakroh` → `@abdel-akh`
+
+---
+
 ## [1.3.0] - 2024-11-27
 
 ### Ajouté
