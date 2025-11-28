@@ -4,7 +4,7 @@
 > 
 > Transformez votre idée en projet structuré en 2 minutes avec Cursor, Claude, Windsurf ou Copilot !
 
-[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
+[![Version](https://img.shields.io/badge/version-1.3.2-blue.svg)](https://github.com/abdel74100/prompt-cursor-bundle)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@abdel-akh/prompt-cursor-bundle.svg)](https://www.npmjs.com/package/@abdel-akh/prompt-cursor-bundle)

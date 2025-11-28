@@ -5,6 +5,14 @@ Toutes les modifications notables de ce projet seront documentées ici.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
 
+## [1.3.2] - 2024-11-28
+
+### Changé
+- 🏷️ **Branding** : Ajout de "(Multi-AI)" au nom pour clarifier le support multi-assistant
+- 📄 **Documentation** : Mise à jour README, GUIDE, CHANGELOG avec le nouveau branding
+
+---
+
 ## [1.3.1] - 2024-11-28
 
 ### Corrigé
