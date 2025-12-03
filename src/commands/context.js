@@ -1,11 +1,16 @@
 const chalk = require('chalk');
 const path = require('path');
-const { loadContext, getWorkflowStatus, clearContext, getContextFileName } = require('../utils/contextTrackerV2');
+const fs = require('fs');
+const { loadContext, getWorkflowStatus, clearContext, getContextFileName, getBugJournalSummary } = require('../utils/contextTrackerV2');
 const { detectProvider, getDirs, DEFAULT_PROVIDER } = require('../utils/directoryManager');
 const { getProvider, getPromptDirectory } = require('../utils/aiProviders');
+const DependencyGraph = require('../utils/dependencyGraph');
+const MilestoneManager = require('../utils/milestoneManager');
+const ModuleManager = require('../utils/moduleManager');
 
 /**
  * Context command - Show and manage CLI context
+ * Enhanced with dashboard mode for complex projects
  */
 async function contextCommand(options) {
   const workingDir = options.path || process.cwd();
@@ -28,6 +33,17 @@ async function contextCommand(options) {
   const promptDir = getPromptDirectory(aiProviderKey);
   const dirs = getDirs(aiProviderKey);
   
+  // Check if complex mode
+  const isComplexMode = context.complexMode || false;
+  const modules = context.modules || [];
+  
+  // Enhanced dashboard mode
+  if (options.dashboard || isComplexMode) {
+    await displayEnhancedDashboard(context, workingDir, aiProviderKey, options);
+    return;
+  }
+  
+  // Standard context display
   console.log(chalk.blue.bold('\n📊 CLI Context & Project Status\n'));
   console.log(chalk.gray('━'.repeat(50)));
   
@@ -126,14 +142,201 @@ async function contextCommand(options) {
   console.log(chalk.gray('\n━'.repeat(50)));
   const contextFileName = getContextFileName(aiProviderKey);
   console.log(chalk.gray(`\nContext file: ${path.join(workingDir, promptDir, contextFileName)}`));
-  console.log(chalk.gray('Use --verbose for more details, --clear to reset\n'));
+  console.log(chalk.gray('Use --verbose for more details, --clear to reset'));
+  console.log(chalk.gray('Use --dashboard for enhanced view (complex projects)\n'));
+}
+
+/**
+ * Display enhanced dashboard for complex projects
+ */
+async function displayEnhancedDashboard(context, workingDir, aiProviderKey, options) {
+  const provider = getProvider(aiProviderKey);
+  const promptDir = getPromptDirectory(aiProviderKey);
+  const dirs = getDirs(aiProviderKey);
+  
+  console.log('');
+  console.log(chalk.blue.bold('┌─────────────────────────────────────────────────────────────────┐'));
+  console.log(chalk.blue.bold(`│  📊 PROJECT DASHBOARD - ${(context.projectName || 'My Project').padEnd(36)} │`));
+  console.log(chalk.blue.bold('├─────────────────────────────────────────────────────────────────┤'));
+  
+  // Project info
+  console.log(chalk.white(`│  ${provider.icon} Provider: ${provider.name.padEnd(20)} Mode: ${context.complexMode ? '📦 Complex' : '📋 Simple'}       │`));
+  console.log(chalk.blue.bold('├─────────────────────────────────────────────────────────────────┤'));
+  
+  // Try to load steps from code-run.md
+  let steps = [];
+  let completedSteps = context.development.completedSteps || [];
+  
+  const codeRunPath = path.join(workingDir, dirs.WORKFLOW, 'code-run.md');
+  if (fs.existsSync(codeRunPath)) {
+    const content = fs.readFileSync(codeRunPath, 'utf-8');
+    steps = parseStepsFromCodeRun(content);
+    completedSteps = steps.filter(s => s.status === 'completed').map(s => s.number);
+  }
+  
+  // Milestones section
+  if (context.complexMode || steps.length > 5) {
+    console.log(chalk.cyan.bold('│  🏁 MILESTONES                                                  │'));
+    console.log(chalk.gray('│  ' + '─'.repeat(61) + '  │'));
+    
+    // Create milestone manager
+    const milestoneManager = new MilestoneManager(steps);
+    milestoneManager.createMilestones();
+    milestoneManager.updateProgress(completedSteps);
+    
+    for (const milestone of milestoneManager.milestones) {
+      const bar = createProgressBar(milestone.progress, 15);
+      const statusIcon = milestone.status === 'completed' ? '✅' : 
+                        milestone.status === 'in_progress' ? '🟡' : '⏳';
+      const name = `${milestone.icon} ${milestone.name}`.padEnd(20);
+      const stats = `[${milestone.completedSteps.length}/${milestone.steps.length}]`.padStart(6);
+      
+      console.log(chalk.white(`│  ${statusIcon} ${name} ${bar} ${milestone.progress.toString().padStart(3)}% ${stats}   │`));
+    }
+    
+    console.log(chalk.blue.bold('├─────────────────────────────────────────────────────────────────┤'));
+  }
+  
+  // Modules section (if complex mode with modules)
+  const modules = context.modules || [];
+  if (modules.length > 0) {
+    console.log(chalk.cyan.bold('│  📦 MODULES                                                     │'));
+    console.log(chalk.gray('│  ' + '─'.repeat(61) + '  │'));
+    
+    const moduleManager = new ModuleManager(workingDir, aiProviderKey);
+    moduleManager.initializeModules(modules);
+    moduleManager.assignStepsToModules(steps);
+    moduleManager.updateProgress(completedSteps);
+    
+    for (const [key, module] of moduleManager.modules) {
+      const bar = createProgressBar(module.progress, 15);
+      const statusIcon = module.status === 'completed' ? '✅' : 
+                        module.status === 'in_progress' ? '🟡' : '⏳';
+      const name = `${module.icon} ${module.name}`.padEnd(20);
+      const stats = `[${module.completedSteps.length}/${module.steps.length}]`.padStart(6);
+      
+      console.log(chalk.white(`│  ${statusIcon} ${name} ${bar} ${module.progress.toString().padStart(3)}% ${stats}   │`));
+    }
+    
+    console.log(chalk.blue.bold('├─────────────────────────────────────────────────────────────────┤'));
+  }
+  
+  // Overall progress
+  const totalSteps = steps.length || context.development.totalSteps || 0;
+  const completedCount = completedSteps.length;
+  const overallProgress = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
+  
+  console.log(chalk.cyan.bold('│  📊 OVERALL PROGRESS                                            │'));
+  console.log(chalk.gray('│  ' + '─'.repeat(61) + '  │'));
+  
+  const overallBar = createProgressBar(overallProgress, 35);
+  console.log(chalk.white(`│  ${overallBar} ${overallProgress.toString().padStart(3)}%            │`));
+  console.log(chalk.white(`│  Steps: ${completedCount}/${totalSteps} completed                                        │`));
+  
+  // Estimated time
+  const hoursRemaining = (totalSteps - completedCount) * 2; // 2h per step estimate
+  const hoursCompleted = completedCount * 2;
+  console.log(chalk.gray(`│  ⏱️  Time: ~${hoursCompleted}h done, ~${hoursRemaining}h remaining                            │`));
+  
+  console.log(chalk.blue.bold('├─────────────────────────────────────────────────────────────────┤'));
+  
+  // Bug tracking section
+  const bugSummary = getBugJournalSummary(workingDir, aiProviderKey);
+  if (bugSummary.totalBugs > 0) {
+    console.log(chalk.cyan.bold('│  🐛 BUG TRACKING                                                │'));
+    console.log(chalk.gray('│  ' + '─'.repeat(61) + '  │'));
+    
+    const bugBar = createProgressBar(
+      bugSummary.totalBugs > 0 ? (bugSummary.resolved / bugSummary.totalBugs) * 100 : 0, 
+      15
+    );
+    console.log(chalk.white(`│  Bugs: ${bugSummary.unresolved} open, ${bugSummary.resolved} resolved  ${bugBar}       │`));
+    
+    // Show recent unresolved bugs
+    const unresolvedBugs = bugSummary.recentBugs.filter(b => !b.resolved);
+    if (unresolvedBugs.length > 0) {
+      unresolvedBugs.slice(0, 2).forEach(bug => {
+        const title = bug.title.length > 40 ? bug.title.substring(0, 37) + '...' : bug.title;
+        console.log(chalk.red(`│  ❌ ${title.padEnd(52)} │`));
+      });
+    }
+    
+    console.log(chalk.blue.bold('├─────────────────────────────────────────────────────────────────┤'));
+  }
+  
+  // Next actions
+  console.log(chalk.cyan.bold('│  💡 NEXT ACTIONS                                                │'));
+  console.log(chalk.gray('│  ' + '─'.repeat(61) + '  │'));
+  
+  // Find next available steps
+  if (steps.length > 0) {
+    const depGraph = new DependencyGraph(steps);
+    depGraph.build();
+    const availableSteps = depGraph.getAvailableSteps(completedSteps);
+    
+    if (availableSteps.length > 0) {
+      const nextSteps = availableSteps.slice(0, 3);
+      nextSteps.forEach((step, i) => {
+        const prefix = i === 0 ? '→' : ' ';
+        const name = step.name.length > 45 ? step.name.substring(0, 42) + '...' : step.name;
+        console.log(chalk.white(`│  ${prefix} Step ${step.number}: ${name.padEnd(48)}│`));
+      });
+      
+      if (availableSteps.length > 1) {
+        console.log(chalk.gray(`│    (${availableSteps.length - 1} more steps can run in parallel)                      │`));
+      }
+    } else if (completedCount === totalSteps) {
+      console.log(chalk.green(`│  🎉 All steps completed! Project is done!                       │`));
+    }
+  } else {
+    console.log(chalk.yellow(`│  Run 'prompt-cursor build' to generate steps                    │`));
+  }
+  
+  console.log(chalk.blue.bold('└─────────────────────────────────────────────────────────────────┘'));
+  
+  // Commands hint
+  console.log('');
+  console.log(chalk.gray('Commands:'));
+  console.log(chalk.gray('  prompt-cursor complete     Mark step as done'));
+  console.log(chalk.gray('  prompt-cursor context -v   Verbose view'));
+  console.log(chalk.gray('  prompt-cursor context -c   Clear context'));
+  console.log('');
+}
+
+/**
+ * Parse steps from code-run.md content
+ */
+function parseStepsFromCodeRun(content) {
+  const steps = [];
+  
+  // Match step headers
+  const stepRegex = /###\s+(✅|⏳|🟡)\s+ÉTAPE\s+(\d+)\s+:\s+([^\n]+)/g;
+  let match;
+  
+  while ((match = stepRegex.exec(content)) !== null) {
+    const statusIcon = match[1];
+    const number = parseInt(match[2]);
+    const name = match[3].trim();
+    
+    let status = 'pending';
+    if (statusIcon === '✅') status = 'completed';
+    else if (statusIcon === '🟡') status = 'in_progress';
+    
+    steps.push({
+      number,
+      name,
+      status,
+      dependsOn: number > 1 ? [number - 1] : []
+    });
+  }
+  
+  return steps;
 }
 
 /**
  * Create a visual progress bar
  */
-function createProgressBar(percentage) {
-  const width = 20;
+function createProgressBar(percentage, width = 20) {
   const filled = Math.round((percentage / 100) * width);
   const empty = width - filled;
   const bar = '█'.repeat(filled) + '░'.repeat(empty);

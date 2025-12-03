@@ -3,9 +3,13 @@ const path = require("path");
 const chalk = require("chalk");
 const { ensureDirectoryStructure, getFilePath, getDirs, DEFAULT_PROVIDER } = require('./directoryManager');
 const { getPromptDirectory } = require('./aiProviders');
+const DependencyGraph = require('./dependencyGraph');
+const MilestoneManager = require('./milestoneManager');
+const ModuleManager = require('./moduleManager');
 
 /**
  * Generate code-run.md and Instructions directory with step files
+ * Supports both simple and complex project modes
  */
 class CodeRunGenerator {
 	constructor(options = {}) {
@@ -17,11 +21,46 @@ class CodeRunGenerator {
 		this.aiProvider = options.aiProvider || DEFAULT_PROVIDER;
 		this.promptDir = getPromptDirectory(this.aiProvider);
 		this.dirs = getDirs(this.aiProvider);
+		
+		// Complex mode options
+		this.complexMode = options.complexMode || false;
+		this.modules = options.modules || [];
+		this.milestones = options.milestones || null;
+		this.dependencyGraph = null;
+		
+		// Initialize managers for complex mode
+		if (this.complexMode) {
+			this.initializeComplexMode(options);
+		}
+	}
+
+	/**
+	 * Initialize complex mode managers
+	 */
+	initializeComplexMode(options) {
+		// Initialize dependency graph
+		if (this.steps.length > 0) {
+			this.dependencyGraph = new DependencyGraph(this.steps);
+			this.dependencyGraph.build();
+		}
+		
+		// Initialize milestone manager
+		this.milestoneManager = new MilestoneManager(this.steps, {
+			autoGroup: options.autoGroupMilestones !== false,
+			defaultMilestones: options.milestoneNames || ['MVP', 'Beta', 'Production']
+		});
+		
+		// Initialize module manager if modules specified
+		if (this.modules.length > 0) {
+			this.moduleManager = new ModuleManager(this.outputDir, this.aiProvider);
+			this.moduleManager.initializeModules(this.modules);
+			this.moduleManager.assignStepsToModules(this.steps, options.moduleAssignments || {});
+		}
 	}
 
 	/**
 	 * Generate default steps based on project complexity
-	 * @param {number} numSteps - Number of steps (3, 5, or 7)
+	 * @param {number} numSteps - Number of steps (3, 5, 7, or more)
 	 * @returns {Array} Array of step objects
 	 */
 	static generateDefaultSteps(numSteps) {
@@ -33,11 +72,16 @@ class CodeRunGenerator {
 			"Tests et validation",
 			"Optimisation et performance",
 			"Déploiement et monitoring",
+			"Documentation et maintenance",
+			"Intégration continue",
+			"Monitoring avancé"
 		];
 
 		return Array.from({ length: numSteps }, (_, i) => ({
+			number: i + 1,
 			name: defaultNames[i] || `Étape ${i + 1}`,
-			objective: "À définir selon votre projet"
+			objective: "À définir selon votre projet",
+			dependsOn: i > 0 ? [i] : [] // Linear dependency by default
 		}));
 	}
 
@@ -54,18 +98,141 @@ class CodeRunGenerator {
 	}
 
 	/**
-	 * Generate code-run.md file
+	 * Generate dynamic steps content (unlimited steps)
+	 * @returns {string} Markdown content for all steps
+	 */
+	generateStepsContent() {
+		const stepsContent = [];
+		
+		for (let i = 0; i < this.steps.length; i++) {
+			const step = this.steps[i];
+			const stepNumber = step.number || (i + 1);
+			const isFirst = i === 0;
+			
+			// Determine status icon
+			let statusIcon = '⏳';
+			let status = '⚪ En attente';
+			let headerIcon = '⏳';
+			
+			if (isFirst) {
+				statusIcon = '🟡';
+				status = '🟡 En cours';
+				headerIcon = '✅';
+			}
+			
+			// Determine precondition
+			let precondition = 'Aucune';
+			if (!isFirst) {
+				if (step.dependsOn && step.dependsOn.length > 0) {
+					if (step.dependsOn.length === 1) {
+						precondition = `Étape ${step.dependsOn[0]} terminée`;
+					} else {
+						precondition = `Étapes ${step.dependsOn.join(', ')} terminées`;
+					}
+				} else {
+					precondition = `Étape ${stepNumber - 1} terminée + tests OK + build ok + runtime ok`;
+				}
+			}
+			
+			const stepContent = `
+### ${headerIcon} ÉTAPE ${stepNumber} : ${step.name}
+
+**Status:** ${status}  
+**Précondition:** ${precondition}  
+**Test requis:** \`tests/step${stepNumber}_test.${this.fileExtension}\`  
+**Documentation:** \`Instructions/instructions-step${stepNumber}.md\`
+
+**TODO :**
+- [ ] Voir détails dans \`Instructions/instructions-step${stepNumber}.md\`
+
+**Critères de validation :**
+- Tous les TODOs de \`instructions-step${stepNumber}.md\` complétés
+- Tests step${stepNumber}_test passent à 100%
+- Build OK
+- Runtime OK
+
+---`;
+			
+			stepsContent.push(stepContent);
+		}
+		
+		return stepsContent.join('\n');
+	}
+
+	/**
+	 * Generate milestones section for complex mode
+	 * @returns {string} Markdown content
+	 */
+	generateMilestonesSection() {
+		if (!this.milestoneManager) return '';
+		
+		this.milestoneManager.createMilestones(this.milestones);
+		return this.milestoneManager.toMarkdown();
+	}
+
+	/**
+	 * Generate modules section for complex mode
+	 * @returns {string} Markdown content
+	 */
+	generateModulesSection() {
+		if (!this.moduleManager || this.modules.length === 0) return '';
+		
+		const lines = [];
+		lines.push('## 📦 MODULES\n');
+		
+		for (const [key, module] of this.moduleManager.modules) {
+			lines.push(`### ${module.icon} ${module.name}`);
+			lines.push(`- **Steps:** ${module.steps.length}`);
+			lines.push(`- **Code Run:** \`modules/${key}/workflow/code-run.md\``);
+			lines.push('');
+		}
+		
+		return lines.join('\n');
+	}
+
+	/**
+	 * Generate dependency graph section
+	 * @returns {string} Markdown content
+	 */
+	generateDependencyGraphSection() {
+		if (!this.dependencyGraph) return '';
+		
+		const lines = [];
+		lines.push('## 🔗 DEPENDENCY GRAPH\n');
+		lines.push(this.dependencyGraph.toMermaid());
+		lines.push('');
+		lines.push('**Critical Path:** ' + this.dependencyGraph.getCriticalPath().map(n => `Step ${n}`).join(' → '));
+		lines.push('');
+		
+		return lines.join('\n');
+	}
+
+	/**
+	 * Generate code-run.md file (dynamic version)
 	 */
 	async generateCodeRunFile() {
 		// Ensure prompt directory structure exists
 		await ensureDirectoryStructure(this.outputDir, this.aiProvider);
 
+		// Use dynamic template
 		const templatePath = path.join(
 			__dirname,
-			"../prompts/code-run-template.md",
+			"../prompts/code-run-template-dynamic.md",
 		);
-		const template = await fs.readFile(templatePath, "utf-8");
+		
+		let template;
+		try {
+			template = await fs.readFile(templatePath, "utf-8");
+		} catch (error) {
+			// Fallback to old template if dynamic doesn't exist
+			const oldTemplatePath = path.join(__dirname, "../prompts/code-run-template.md");
+			template = await fs.readFile(oldTemplatePath, "utf-8");
+		}
 
+		// Generate dynamic content
+		const stepsContent = this.generateStepsContent();
+		
+		// Prepare replacements
 		const replacements = {
 			PROJECT_NAME: this.projectName,
 			EXT: this.fileExtension,
@@ -73,17 +240,21 @@ class CodeRunGenerator {
 			COMPLETED_STEPS: "0",
 			CURRENT_STEP: "1",
 			PROGRESS_PERCENTAGE: "0",
+			STEPS_CONTENT: stepsContent
 		};
 
-		// Replace step names
-		this.steps.forEach((step, index) => {
-			const stepKey = `STEP_${index + 1}_NAME`;
-			replacements[stepKey] = step.name || `Étape ${index + 1}`;
-		});
-
-		// Fill missing steps with placeholder
-		for (let i = this.steps.length; i < 5; i++) {
-			replacements[`STEP_${i + 1}_NAME`] = `Étape ${i + 1} (À définir)`;
+		// Handle complex mode sections
+		if (this.complexMode) {
+			replacements.MILESTONES_SECTION = this.generateMilestonesSection();
+			replacements.MODULES_SECTION = this.generateModulesSection();
+			replacements.DEPENDENCY_GRAPH = this.generateDependencyGraphSection();
+			
+			// Remove complex mode markers
+			template = template.replace(/\{\{#COMPLEX_MODE\}\}/g, '');
+			template = template.replace(/\{\{\/COMPLEX_MODE\}\}/g, '');
+		} else {
+			// Remove complex mode sections entirely
+			template = template.replace(/\{\{#COMPLEX_MODE\}\}[\s\S]*?\{\{\/COMPLEX_MODE\}\}/g, '');
 		}
 
 		const content = this.replacePlaceholders(template, replacements);
@@ -91,6 +262,7 @@ class CodeRunGenerator {
 
 		await fs.writeFile(outputPath, content, "utf-8");
 		console.log(chalk.green(`✓ Fichier code-run.md créé: ${this.promptDir}/workflow/code-run.md`));
+		console.log(chalk.gray(`  → ${this.steps.length} étapes générées`));
 
 		return outputPath;
 	}
@@ -113,7 +285,7 @@ class CodeRunGenerator {
 
 		// Use simple template if steps have tasks array
 		const hasTasksArray = this.steps.some(s => Array.isArray(s.tasks));
-		const templateName = hasTasksArray ? "instructions-template-simple.md" : "instructions-template.md";
+		const templateName = hasTasksArray ? "instructions-template-simple.md" : "instructions-template-simple.md";
 		
 		const templatePath = path.join(
 			__dirname,
@@ -125,7 +297,7 @@ class CodeRunGenerator {
 		const createdFiles = [];
 		for (let i = 0; i < this.steps.length; i++) {
 			const step = this.steps[i];
-			const stepNumber = i + 1;
+			const stepNumber = step.number || (i + 1);
 			
 			// Generate tasks list if tasks array exists
 			let tasksList = '';
@@ -206,142 +378,28 @@ class CodeRunGenerator {
 				cypressTests = '  it(\'devrait valider l\\\'étape\', () => {\n    // TODO: Ajouter les tests\n  });\n';
 			}
 
+			// Determine dependencies text
+			let dependenciesText = 'Aucune';
+			if (stepNumber > 1) {
+				if (step.dependsOn && step.dependsOn.length > 0) {
+					dependenciesText = step.dependsOn.map(d => `Étape ${d}`).join(', ') + ' complétée(s)';
+				} else {
+					dependenciesText = `Étape ${stepNumber - 1} complétée`;
+				}
+			}
+
 			const replacements = {
 				STEP_NUMBER: stepNumber.toString(),
 				STEP_NAME: step.name || `Étape ${stepNumber}`,
 				STEP_OBJECTIVE: step.objective || "À définir",
-				STEP_DEPENDENCIES:
-					step.dependencies ||
-					(stepNumber === 1 ? "Aucune" : `Étape ${stepNumber - 1} complétée`),
+				STEP_DEPENDENCIES: dependenciesText,
 				TASKS_LIST: tasksList,
 				TESTS_LIST: testsList,
 				CYPRESS_TESTS: cypressTests || '  // Tests Cypress à ajouter ici',
 				EXT: this.fileExtension,
 				TEST_COMMAND: step.testCommand || "npm test",
 				NEXT_STEP_NUMBER: (stepNumber + 1).toString(),
-				NEXT_STEP_NAME: this.steps[stepNumber]?.name || "Prochaine étape",
-				
-				// For old template compatibility (keep these even if using simple template)
-				OBJECTIVE_1: step.objectives?.[0] || "Objectif 1 à définir",
-				OBJECTIVE_2: step.objectives?.[1] || "Objectif 2 à définir",
-				OBJECTIVE_3: step.objectives?.[2] || "Objectif 3 à définir",
-
-				PHASE_1_NAME: step.phases?.[0]?.name || "Configuration initiale",
-				PHASE_2_NAME: step.phases?.[1]?.name || "Implémentation",
-				PHASE_3_NAME: step.phases?.[2]?.name || "Tests et validation",
-
-				// Tasks (with defaults)
-				TASK_1_1_DESCRIPTION:
-					step.tasks?.["1.1"]?.description || "Tâche 1.1 à définir",
-				TASK_1_1_DETAILS: step.tasks?.["1.1"]?.details || "Détails à compléter",
-				TASK_1_1_FILES: step.tasks?.["1.1"]?.files || "Fichiers à spécifier",
-
-				TASK_1_2_DESCRIPTION:
-					step.tasks?.["1.2"]?.description || "Tâche 1.2 à définir",
-				TASK_1_2_DETAILS: step.tasks?.["1.2"]?.details || "Détails à compléter",
-				TASK_1_2_FILES: step.tasks?.["1.2"]?.files || "Fichiers à spécifier",
-
-				TASK_1_3_DESCRIPTION:
-					step.tasks?.["1.3"]?.description || "Tâche 1.3 à définir",
-				TASK_1_3_DETAILS: step.tasks?.["1.3"]?.details || "Détails à compléter",
-				TASK_1_3_FILES: step.tasks?.["1.3"]?.files || "Fichiers à spécifier",
-
-				TASK_2_1_DESCRIPTION:
-					step.tasks?.["2.1"]?.description || "Tâche 2.1 à définir",
-				TASK_2_1_DETAILS: step.tasks?.["2.1"]?.details || "Détails à compléter",
-				TASK_2_1_FILES: step.tasks?.["2.1"]?.files || "Fichiers à spécifier",
-
-				TASK_2_2_DESCRIPTION:
-					step.tasks?.["2.2"]?.description || "Tâche 2.2 à définir",
-				TASK_2_2_DETAILS: step.tasks?.["2.2"]?.details || "Détails à compléter",
-				TASK_2_2_FILES: step.tasks?.["2.2"]?.files || "Fichiers à spécifier",
-
-				TASK_3_1_DESCRIPTION:
-					step.tasks?.["3.1"]?.description || "Tâche 3.1 à définir",
-				TASK_3_1_DETAILS: step.tasks?.["3.1"]?.details || "Détails à compléter",
-				TASK_3_1_FILES: step.tasks?.["3.1"]?.files || "Fichiers à spécifier",
-
-				TASK_3_2_DESCRIPTION:
-					step.tasks?.["3.2"]?.description || "Tâche 3.2 à définir",
-				TASK_3_2_DETAILS: step.tasks?.["3.2"]?.details || "Détails à compléter",
-				TASK_3_2_FILES: step.tasks?.["3.2"]?.files || "Fichiers à spécifier",
-
-				// Tests
-				EXT: this.fileExtension,
-				LANGUAGE: this.language,
-				TEST_1_NAME: step.tests?.[0]?.name || "Test de base",
-				TEST_1_DESCRIPTION:
-					step.tests?.[0]?.description || "Description du test à définir",
-				TEST_1_VERIFICATION:
-					step.tests?.[0]?.verification || "Ce qui doit être vérifié",
-
-				TEST_2_NAME: step.tests?.[1]?.name || "Test d'intégration",
-				TEST_2_DESCRIPTION:
-					step.tests?.[1]?.description || "Description du test à définir",
-				TEST_2_VERIFICATION:
-					step.tests?.[1]?.verification || "Ce qui doit être vérifié",
-
-				TEST_3_NAME: step.tests?.[2]?.name || "Test de validation",
-				TEST_3_DESCRIPTION:
-					step.tests?.[2]?.description || "Description du test à définir",
-				TEST_3_VERIFICATION:
-					step.tests?.[2]?.verification || "Ce qui doit être vérifié",
-
-				TEST_COMMAND: step.testCommand || "npm test",
-
-				// Files
-				FILE_TO_CREATE_1: step.filesToCreate?.[0] || "fichier1.js",
-				FILE_TO_CREATE_2: step.filesToCreate?.[1] || "fichier2.js",
-				FILE_TO_CREATE_3: step.filesToCreate?.[2] || "fichier3.js",
-				FILE_TO_MODIFY_1: step.filesToModify?.[0] || "fichier_existant1.js",
-				FILE_TO_MODIFY_2: step.filesToModify?.[1] || "fichier_existant2.js",
-
-				// Validation criteria
-				VALIDATION_CRITERIA_1:
-					step.validationCriteria?.[0]?.name || "Critère 1",
-				VALIDATION_CRITERIA_1_DETAIL_1:
-					step.validationCriteria?.[0]?.details?.[0] || "Détail 1",
-				VALIDATION_CRITERIA_1_DETAIL_2:
-					step.validationCriteria?.[0]?.details?.[1] || "Détail 2",
-				VALIDATION_CRITERIA_1_DETAIL_3:
-					step.validationCriteria?.[0]?.details?.[2] || "Détail 3",
-
-				VALIDATION_CRITERIA_2:
-					step.validationCriteria?.[1]?.name || "Critère 2",
-				VALIDATION_CRITERIA_2_DETAIL_1:
-					step.validationCriteria?.[1]?.details?.[0] || "Détail 1",
-				VALIDATION_CRITERIA_2_DETAIL_2:
-					step.validationCriteria?.[1]?.details?.[1] || "Détail 2",
-
-				VALIDATION_CRITERIA_3:
-					step.validationCriteria?.[2]?.name || "Critère 3",
-				VALIDATION_CRITERIA_3_DETAIL_1:
-					step.validationCriteria?.[2]?.details?.[0] || "Détail 1",
-				VALIDATION_CRITERIA_3_DETAIL_2:
-					step.validationCriteria?.[2]?.details?.[1] || "Détail 2",
-
-				COVERAGE_THRESHOLD: step.coverageThreshold || "80",
-
-				// Tips and resources
-				TIP_1: step.tips?.[0] || "Conseil 1 à définir",
-				TIP_2: step.tips?.[1] || "Conseil 2 à définir",
-				TIP_3: step.tips?.[2] || "Conseil 3 à définir",
-
-				RESOURCE_1_NAME: step.resources?.[0]?.name || "Documentation",
-				RESOURCE_1_URL: step.resources?.[0]?.url || "#",
-				RESOURCE_2_NAME: step.resources?.[1]?.name || "Tutoriel",
-				RESOURCE_2_URL: step.resources?.[1]?.url || "#",
-				RESOURCE_3_NAME: step.resources?.[2]?.name || "Référence API",
-				RESOURCE_3_URL: step.resources?.[2]?.url || "#",
-
-				IMPLEMENTATION_NOTES: step.implementationNotes || "Notes à ajouter...",
-
-				PITFALL_1: step.pitfalls?.[0] || "Piège 1 à identifier",
-				PITFALL_2: step.pitfalls?.[1] || "Piège 2 à identifier",
-				PITFALL_3: step.pitfalls?.[2] || "Piège 3 à identifier",
-
-				NEXT_STEP_NUMBER: (stepNumber + 1).toString(),
-				NEXT_STEP_NAME: this.steps[stepNumber]?.name || "Prochaine étape",
+				NEXT_STEP_NAME: this.steps[i + 1]?.name || "Prochaine étape",
 			};
 
 			const content = this.replacePlaceholders(template, replacements);
@@ -357,27 +415,137 @@ class CodeRunGenerator {
 	}
 
 	/**
+	 * Generate module-specific files (for complex mode)
+	 */
+	async generateModuleFiles() {
+		if (!this.moduleManager || this.modules.length === 0) return [];
+		
+		const createdFiles = [];
+		
+		// Create module directory structure
+		await this.moduleManager.createDirectoryStructure();
+		
+		// Generate code-run for each module
+		for (const [key, module] of this.moduleManager.modules) {
+			const moduleDir = path.join(this.outputDir, this.promptDir, 'modules', key);
+			const workflowDir = path.join(moduleDir, 'workflow');
+			const instructionsDir = path.join(moduleDir, 'Instructions');
+			
+			// Generate module code-run.md
+			const codeRunContent = this.moduleManager.generateModuleCodeRun(key);
+			const codeRunPath = path.join(workflowDir, 'code-run.md');
+			await fs.writeFile(codeRunPath, codeRunContent, 'utf-8');
+			createdFiles.push(codeRunPath);
+			console.log(chalk.green(`  ✓ modules/${key}/workflow/code-run.md créé`));
+			
+			// Generate instruction files for module steps
+			for (let i = 0; i < module.steps.length; i++) {
+				const step = module.steps[i];
+				const localStepNum = i + 1;
+				
+				const instructionContent = this.generateModuleInstructionContent(step, localStepNum, module);
+				const instructionPath = path.join(instructionsDir, `instructions-step${localStepNum}.md`);
+				await fs.writeFile(instructionPath, instructionContent, 'utf-8');
+				createdFiles.push(instructionPath);
+			}
+		}
+		
+		// Generate master code-run.md
+		const masterContent = this.moduleManager.generateMasterCodeRun();
+		const masterPath = path.join(this.outputDir, this.promptDir, 'workflow', 'master-code-run.md');
+		await fs.writeFile(masterPath, masterContent, 'utf-8');
+		createdFiles.push(masterPath);
+		console.log(chalk.green(`✓ master-code-run.md créé`));
+		
+		// Save module config
+		await this.moduleManager.saveConfig();
+		
+		return createdFiles;
+	}
+
+	/**
+	 * Generate instruction content for a module step
+	 */
+	generateModuleInstructionContent(step, localStepNum, module) {
+		return `# ${module.icon} ${module.name} - Instructions Étape ${localStepNum}
+
+## 📋 ${step.name}
+
+**Module:** ${module.name}
+**Global Step:** ${step.number}
+**Objectif:** ${step.objective || 'À définir'}
+
+---
+
+## ✅ TODO Liste
+
+${Array.isArray(step.tasks) && step.tasks.length > 0 
+	? step.tasks.map((t, i) => `- [ ] **Task ${i + 1}:** ${t.description}`).join('\n')
+	: '- [ ] Voir le plan d\'implémentation pour les tâches détaillées'}
+
+---
+
+## 🧪 Tests requis
+
+**Fichier:** \`tests/${module.key}/step${localStepNum}_test.${this.fileExtension}\`
+
+---
+
+## 🔍 Critères de validation
+
+- [ ] Tous les TODOs complétés
+- [ ] Tests passent à 100%
+- [ ] Build OK
+- [ ] Aucune régression
+
+---
+
+## 🔄 Prochaine étape
+
+Une fois cette étape validée, continuez avec l'étape suivante du module ou passez au prochain module.
+`;
+	}
+
+	/**
 	 * Generate all files
 	 */
 	async generate() {
 		console.log(chalk.cyan("\n🚀 Génération des fichiers Code Run...\n"));
+		
+		if (this.complexMode) {
+			console.log(chalk.blue("📦 Mode Complexe activé"));
+			if (this.modules.length > 0) {
+				console.log(chalk.gray(`   Modules: ${this.modules.join(', ')}`));
+			}
+			console.log('');
+		}
 
 		const codeRunPath = await this.generateCodeRunFile();
 		const instructionFiles = await this.generateInstructionsFiles();
+		
+		let moduleFiles = [];
+		if (this.complexMode && this.modules.length > 0) {
+			moduleFiles = await this.generateModuleFiles();
+		}
 
 		console.log(chalk.green("\n✨ Génération terminée avec succès!\n"));
 		console.log(chalk.cyan("Fichiers créés:"));
 		console.log(chalk.white(`  - ${codeRunPath}`));
 		console.log(
-			chalk.white(`  - ${path.join(this.outputDir, "Instructions")}/`),
+			chalk.white(`  - ${path.join(this.outputDir, this.dirs.INSTRUCTIONS)}/`),
 		);
 		instructionFiles.forEach((file) => {
 			console.log(chalk.white(`    - ${path.basename(file)}`));
 		});
+		
+		if (moduleFiles.length > 0) {
+			console.log(chalk.white(`  - Module files: ${moduleFiles.length} fichiers`));
+		}
 
 		return {
 			codeRunPath,
 			instructionFiles,
+			moduleFiles
 		};
 	}
 }

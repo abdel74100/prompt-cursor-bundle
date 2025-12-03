@@ -5,6 +5,37 @@ Toutes les modifications notables de ce projet seront documentées ici.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
 
+## [1.5.0] - 2024-12-03
+
+### Ajouté
+- 📊 **Dashboard Interactif** : Nouvelle commande `dashboard` (alias `dash`)
+  - Vue en temps réel de la progression du projet
+  - Mode watch avec rafraîchissement automatique (`--watch`)
+  - Affichage des bugs ouverts, fichiers récents, TODOs de l'étape courante
+- 🐛 **Journal des Bugs** : Nouvelle commande `bug`
+  - Ajouter des bugs (`--add`)
+  - Résoudre des bugs (`--solve`)
+  - Rechercher des bugs (`--search`)
+  - Vérifier les solutions connues (`--check`)
+  - Tags automatiques extraits des messages d'erreur
+  - Index des solutions pour lookup rapide
+- 📦 **Mode Complexe** : Support des projets multi-modules
+  - Option `--complex` pour generate et build
+  - Modules : frontend, backend, api, database, infra, mobile, auth, testing
+  - Milestones (MVP, Beta, Production)
+  - Graphe de dépendances non-linéaires
+  - Dashboard amélioré avec progression par module
+- 🔄 **Context Tracker V3** : Mise à jour automatique du contexte
+  - Détection automatique de l'état du projet
+  - Suivi des bugs et statistiques
+  - Migration automatique des anciens contextes
+
+### Changé
+- 📄 **Template dynamique** : Nombre d'étapes illimité (plus de limite à 5)
+- 📊 **Commande context** : Affichage amélioré avec stats bugs
+
+---
+
 ## [1.4.1] - 2024-11-28
 
 ### Ajouté

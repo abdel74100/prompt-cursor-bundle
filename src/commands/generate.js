@@ -8,6 +8,7 @@ const { ensureDirectoryStructure, getFilePath, getDirs } = require('../utils/dir
 const { generateVersionsSection } = require('../utils/versionCompatibility');
 const { getProvider, getProviderChoices, getPromptDirectory } = require('../utils/aiProviders');
 const { extractPromptContent, copyToClipboard, watchForFiles } = require('../utils/fileWatcher');
+const ModuleManager = require('../utils/moduleManager');
 const buildCommand = require('./build');
 
 /**
@@ -35,6 +36,7 @@ function ensureDirectoryExists(dirPath) {
 
 /**
  * Generate command - Create a single intelligent prompt that generates all files
+ * Now supports complex mode with modules
  */
 async function generateCommand(options) {
   console.log(chalk.blue.bold('\n🚀 Generate - One Prompt to Rule Them All\n'));
@@ -45,6 +47,8 @@ async function generateCommand(options) {
     let ideaFile = options.ideaFile;
     let outputDir = options.output;
     let aiProvider = options.provider;
+    let complexMode = options.complex || false;
+    let selectedModules = options.modules ? options.modules.split(',') : [];
     
     // Ask for missing info
     const questions = [];
@@ -89,12 +93,38 @@ async function generateCommand(options) {
       });
     }
     
+    // Ask for complex mode if not specified
+    if (!options.complex && !options.simple) {
+      questions.push({
+        type: 'confirm',
+        name: 'complexMode',
+        message: '📦 Enable complex project mode? (modules, milestones, dependencies)',
+        default: false
+      });
+    }
+    
     if (questions.length > 0) {
       const answers = await inquirer.prompt(questions);
       projectName = projectName || answers.projectName;
       ideaFile = ideaFile || answers.ideaFile;
       outputDir = outputDir || answers.outputDir;
       aiProvider = aiProvider || answers.aiProvider;
+      complexMode = complexMode || answers.complexMode || false;
+    }
+    
+    // Ask for modules if complex mode enabled
+    if (complexMode && selectedModules.length === 0) {
+      const moduleChoices = ModuleManager.getModuleChoices();
+      const moduleAnswer = await inquirer.prompt([
+        {
+          type: 'checkbox',
+          name: 'modules',
+          message: '📦 Select project modules:',
+          choices: moduleChoices,
+          validate: (input) => input.length > 0 || 'Select at least one module'
+        }
+      ]);
+      selectedModules = moduleAnswer.modules;
     }
     
     // Get provider configuration
@@ -120,8 +150,15 @@ async function generateCommand(options) {
     ensureDirectoryExists(outputDir);
     await ensureDirectoryStructure(outputDir, aiProvider);
     
-    // Load template
-    const templatePath = path.join(__dirname, '../prompts/prompt-generate-template.txt');
+    // Load template (use complex template if in complex mode)
+    const templateName = complexMode ? 'prompt-generate-template-complex.txt' : 'prompt-generate-template.txt';
+    let templatePath = path.join(__dirname, '../prompts/', templateName);
+    
+    // Fallback to standard template if complex doesn't exist
+    if (!fsSync.existsSync(templatePath)) {
+      templatePath = path.join(__dirname, '../prompts/prompt-generate-template.txt');
+    }
+    
     let template = await fs.readFile(templatePath, 'utf-8');
     
     // Generate compatibility section based on idea content
@@ -131,6 +168,12 @@ async function generateCommand(options) {
     let promptContent = template
       .replace('{{IDEA}}', ideaContent)
       .replace(/\{\{PROMPT_DIR\}\}/g, promptDir);
+    
+    // Add complex mode instructions if enabled
+    if (complexMode) {
+      const complexInstructions = generateComplexModeInstructions(selectedModules);
+      promptContent = promptContent.replace('# Your Task', `${complexInstructions}\n\n# Your Task`);
+    }
     
     // Insert versions section after the idea
     if (versionsSection) {
@@ -146,13 +189,19 @@ async function generateCommand(options) {
     let fileContent = `# 🎯 ${projectName} - Prompt pour ${provider.name}\n\n`;
     fileContent += `**Assistant AI:** ${provider.icon} ${provider.name}\n`;
     fileContent += `**Dossier:** \`${promptDir}/\`\n`;
-    fileContent += `**Fichier de règles:** \`${provider.rulesFile}\`\n\n`;
-    fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    fileContent += `**Fichier de règles:** \`${provider.rulesFile}\`\n`;
+    
+    if (complexMode) {
+      fileContent += `**Mode:** 📦 Complexe\n`;
+      fileContent += `**Modules:** ${selectedModules.join(', ')}\n`;
+    }
+    
+    fileContent += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     fileContent += `## 📋 Instructions (4 étapes)\n\n`;
     fileContent += `1️⃣ **Copier** le prompt entre 🚀 START et 🏁 END  \n`;
     fileContent += `2️⃣ **Coller** dans ${provider.name}  \n`;
     fileContent += `3️⃣ **Sauvegarder** les 4 fichiers dans \`${promptDir}/docs/\`  \n`;
-    fileContent += `4️⃣ **Lancer** : \`prompt-cursor build\`\n\n`;
+    fileContent += `4️⃣ **Lancer** : \`prompt-cursor build${complexMode ? ' --complex' : ''}\`\n\n`;
     fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     fileContent += `## 🚀 START - COPIER TOUT CE QUI SUIT\n\n`;
     fileContent += promptContent;
@@ -168,7 +217,7 @@ async function generateCommand(options) {
     fileContent += `\`\`\`\n\n`;
     fileContent += `## ⚡ Ensuite\n\n`;
     fileContent += `\`\`\`bash\n`;
-    fileContent += `prompt-cursor build  # Génère ${provider.rulesFile} + code-run.md + Instructions/\n`;
+    fileContent += `prompt-cursor build${complexMode ? ' --complex' : ''}  # Génère ${provider.rulesFile} + code-run.md + Instructions/\n`;
     fileContent += `\`\`\`\n`;
     
     await fs.writeFile(promptFilePath, fileContent, 'utf-8');
@@ -176,7 +225,14 @@ async function generateCommand(options) {
     console.log(chalk.green.bold(`✅ Prompt generated for ${provider.name}!\n`));
     console.log(chalk.green(`File: ${promptDir}/prompts/prompt-generate.md`));
     console.log(chalk.gray(`Directory: ${promptDir}/`));
-    console.log(chalk.gray(`Rules file: ${provider.rulesFile}\n`));
+    console.log(chalk.gray(`Rules file: ${provider.rulesFile}`));
+    
+    if (complexMode) {
+      console.log(chalk.blue(`Mode: 📦 Complex`));
+      console.log(chalk.gray(`Modules: ${selectedModules.join(', ')}`));
+    }
+    
+    console.log('');
       
     // Load/update context
     const context = await loadContext(outputDir, aiProvider);
@@ -184,10 +240,25 @@ async function generateCommand(options) {
     context.outputDir = outputDir;
     context.aiProvider = aiProvider;
     context.workflow.type = 'generate';
+    context.complexMode = complexMode;
+    context.modules = selectedModules;
     recordCommand(context, 'generate', options);
     trackFile(context, `${promptDir}/prompts/prompt-generate.md`, 'generated');
     updateWorkflowPhase(context, 'prompt');
     saveContext(context, outputDir, aiProvider);
+    
+    // Save project config for complex mode
+    if (complexMode) {
+      const configPath = path.join(outputDir, promptDir, 'project-config.json');
+      const config = {
+        projectName,
+        complexMode: true,
+        modules: selectedModules,
+        aiProvider,
+        createdAt: new Date().toISOString()
+      };
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    }
       
     // Instructions
     console.log(chalk.cyan.bold('📋 Next Steps:\n'));
@@ -198,7 +269,7 @@ async function generateCommand(options) {
     console.log(chalk.gray(`     - ${promptDir}/docs/ai-rules.md`));
     console.log(chalk.gray(`     - ${promptDir}/docs/spec.md`));
     console.log(chalk.gray(`     - ${promptDir}/docs/implementation-plan.md`));
-    console.log(chalk.white('  4. Run: prompt-cursor build'));
+    console.log(chalk.white(`  4. Run: prompt-cursor build${complexMode ? ' --complex' : ''}`));
     console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/\n`));
       
     console.log(chalk.green('✨ All files will be in:'), chalk.bold(outputDir + '/\n'));
@@ -230,8 +301,12 @@ async function generateCommand(options) {
       watchForFiles(docsDir, async () => {
         console.log(chalk.blue.bold('\n🔨 Lancement automatique de build...\n'));
         
-        // Run build command
-        await buildCommand({ output: outputDir });
+        // Run build command with complex mode if enabled
+        await buildCommand({ 
+          output: outputDir,
+          complex: complexMode,
+          modules: selectedModules.join(',')
+        });
         
         console.log(chalk.green.bold('\n✅ Mode auto terminé ! Votre projet est prêt.\n'));
       });
@@ -247,6 +322,43 @@ async function generateCommand(options) {
     
     process.exit(1);
   }
+}
+
+/**
+ * Generate complex mode instructions for the prompt
+ */
+function generateComplexModeInstructions(modules) {
+  const moduleDescriptions = {
+    frontend: '🎨 Frontend (UI, components, pages)',
+    backend: '⚙️ Backend (server, controllers, services)',
+    api: '🔌 API (REST/GraphQL endpoints)',
+    database: '🗄️ Database (schema, migrations)',
+    infra: '☁️ Infrastructure (Docker, CI/CD, cloud)',
+    mobile: '📱 Mobile (React Native, Flutter)',
+    auth: '🔐 Authentication (JWT, OAuth)',
+    testing: '🧪 Testing (unit, e2e, integration)'
+  };
+
+  let instructions = `# 📦 Complex Project Mode\n\n`;
+  instructions += `This is a complex project with multiple modules. Please structure your implementation plan accordingly.\n\n`;
+  instructions += `## Selected Modules:\n\n`;
+  
+  for (const mod of modules) {
+    instructions += `- ${moduleDescriptions[mod] || mod}\n`;
+  }
+  
+  instructions += `\n## Additional Requirements for Complex Mode:\n\n`;
+  instructions += `1. **Dependencies**: For each step, specify which other steps it depends on\n`;
+  instructions += `   - Format: \`Depends on: Step 1, Step 3\` or \`Depends on: none\`\n`;
+  instructions += `   - Mark steps that can run in parallel with \`(parallel)\`\n\n`;
+  instructions += `2. **Modules**: Assign each step to a module\n`;
+  instructions += `   - Format: \`Module: frontend\` or \`Module: backend\`\n\n`;
+  instructions += `3. **Milestones**: Group steps into milestones (MVP, Beta, Production)\n`;
+  instructions += `   - Use \`## Phase 1: MVP\` headers to define milestones\n\n`;
+  instructions += `4. **Estimated Time**: Provide time estimates for each step\n`;
+  instructions += `   - Format: \`Estimated: 4 hours\` or \`Estimated: 2 days\`\n\n`;
+  
+  return instructions;
 }
 
 module.exports = generateCommand;
