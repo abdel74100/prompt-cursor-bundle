@@ -10,13 +10,13 @@ tests/
 docs/
 examples/
 
-# Exclude markdown docs but keep templates and essential files
+# Exclude internal markdown docs but keep public ones
 PUBLISH.md
-GUIDE.md
 CHANGELOG.md
-example-idea.md
 *.md
 !README.md
+!GUIDE.md
+!example-idea.md
 !src/prompts/*.md
 
 # Git and CI
