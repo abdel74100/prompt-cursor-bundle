@@ -4,6 +4,7 @@ const path = require('path');
 /**
  * Parse implementation-plan.md to extract steps
  * Supports complex projects with non-linear dependencies
+ * V2: Enhanced extraction of files, commands, and rich metadata
  */
 class PlanParser {
   /**
@@ -23,7 +24,7 @@ class PlanParser {
   /**
    * Parse plan content
    * @param {string} content - Plan markdown content
-   * @returns {Array} Array of step objects
+   * @returns {Array} Array of step objects with rich metadata
    */
   static parsePlan(content) {
     const steps = [];
@@ -48,13 +49,16 @@ class PlanParser {
         estimatedTime: this.extractEstimatedTime(stepContent, content),
         dependsOn: dependencies.dependsOn,
         parallel: dependencies.parallel,
-        module: this.extractModule(stepContent)
+        module: this.extractModule(stepContent),
+        files: this.extractFiles(stepContent),
+        userCommands: this.extractUserCommands(stepContent),
+        techDetails: this.extractTechDetails(stepContent)
       });
     }
     
-    // Try format 2: "### Step X:" (English format)
+    // Try format 2: "#### Step X:" (English format with ####)
     if (steps.length === 0) {
-      const englishHeaderRegex = /###\s+Step\s+(\d+):\s+(.+?)\n([\s\S]*?)(?=###\s+Step|##\s+Phase|##\s+\w|$)/gs;
+      const englishHeaderRegex = /####\s+Step\s+(\d+):\s+(.+?)\n([\s\S]*?)(?=####\s+Step|###\s+|##\s+|$)/gs;
       
       while ((match = englishHeaderRegex.exec(content)) !== null) {
         const stepNumber = parseInt(match[1]);
@@ -68,16 +72,47 @@ class PlanParser {
           number: stepNumber,
           name: stepTitle,
           tasks: tasks,
-          objective: this.extractObjective(stepContent),
+          objective: this.extractTaskDescription(stepContent) || stepTitle,
           estimatedTime: this.extractEstimatedTime(stepContent, content),
           dependsOn: dependencies.dependsOn,
           parallel: dependencies.parallel,
-          module: this.extractModule(stepContent)
+          module: this.extractModule(stepContent),
+          files: this.extractFiles(stepContent),
+          userCommands: this.extractUserCommands(stepContent),
+          techDetails: this.extractTechDetails(stepContent)
         });
       }
     }
     
-    // Try format 3: "- [ ] Step X:" (English checkbox format)
+    // Try format 3: "### Step X:" (English format with ###)
+    if (steps.length === 0) {
+      const englishHeaderRegex2 = /###\s+Step\s+(\d+):\s+(.+?)\n([\s\S]*?)(?=###\s+Step|##\s+Phase|##\s+\w|$)/gs;
+      
+      while ((match = englishHeaderRegex2.exec(content)) !== null) {
+        const stepNumber = parseInt(match[1]);
+        const stepTitle = match[2].trim();
+        const stepContent = match[3];
+        
+        const tasks = this.extractTasksFromStepFormat(stepContent);
+        const dependencies = this.extractDependencies(stepContent, stepNumber);
+        
+        steps.push({
+          number: stepNumber,
+          name: stepTitle,
+          tasks: tasks,
+          objective: this.extractTaskDescription(stepContent) || stepTitle,
+          estimatedTime: this.extractEstimatedTime(stepContent, content),
+          dependsOn: dependencies.dependsOn,
+          parallel: dependencies.parallel,
+          module: this.extractModule(stepContent),
+          files: this.extractFiles(stepContent),
+          userCommands: this.extractUserCommands(stepContent),
+          techDetails: this.extractTechDetails(stepContent)
+        });
+      }
+    }
+    
+    // Try format 4: "- [ ] Step X:" (English checkbox format)
     if (steps.length === 0) {
       const checkboxRegex = /-\s+\[\s*\]\s+Step\s+(\d+):\s+([^\n]+)([\s\S]*?)(?=\n-\s+\[\s*\]\s+Step|\n##\s+Phase|$)/g;
       
@@ -97,13 +132,17 @@ class PlanParser {
           estimatedTime: this.extractEstimatedTime(stepContent, content),
           dependsOn: dependencies.dependsOn,
           parallel: dependencies.parallel,
-          module: this.extractModule(stepContent)
+          module: this.extractModule(stepContent),
+          files: this.extractFiles(stepContent),
+          userCommands: this.extractUserCommands(stepContent),
+          techDetails: this.extractTechDetails(stepContent)
         });
       }
     }
     
-    // If no explicit dependencies found, set linear dependencies
-    if (steps.length > 0 && steps.every(s => !s.dependsOn || s.dependsOn.length === 0)) {
+    // Only set linear dependencies if NO step has explicit dependencies
+    const hasAnyExplicitDeps = steps.some(s => s.dependsOn && s.dependsOn.length > 0);
+    if (steps.length > 0 && !hasAnyExplicitDeps) {
       for (let i = 1; i < steps.length; i++) {
         steps[i].dependsOn = [steps[i - 1].number];
       }
@@ -113,7 +152,117 @@ class PlanParser {
   }
 
   /**
+   * Extract files to create from step content
+   * @param {string} content - Step content
+   * @returns {Array} Array of file paths
+   */
+  static extractFiles(content) {
+    const files = [];
+    
+    // Format: "- **Files**:" followed by list
+    const filesMatch = content.match(/-\s*\*\*Files?\*\*\s*:\s*\n([\s\S]*?)(?=\n-\s*\*\*|\n####|\n###|\n##|$)/i);
+    if (filesMatch) {
+      const fileLines = filesMatch[1].split('\n');
+      for (const line of fileLines) {
+        const trimmed = line.trim();
+        // Match "- `path/to/file`" or "- path/to/file:" patterns
+        const fileMatch = trimmed.match(/^-\s*`?([^`:\n]+)`?\s*:?.*$/);
+        if (fileMatch && fileMatch[1].includes('/')) {
+          files.push(fileMatch[1].trim());
+        }
+      }
+    }
+    
+    // Also look for inline file references
+    const inlineFiles = content.match(/`([^`]+\.(ts|tsx|js|jsx|json|md|yml|yaml|prisma|sql|css|scss))`/g);
+    if (inlineFiles) {
+      for (const f of inlineFiles) {
+        const cleanFile = f.replace(/`/g, '');
+        if (!files.includes(cleanFile) && cleanFile.includes('/')) {
+          files.push(cleanFile);
+        }
+      }
+    }
+    
+    return files;
+  }
+
+  /**
+   * Extract user commands/instructions from step content
+   * @param {string} content - Step content
+   * @returns {Array} Array of commands
+   */
+  static extractUserCommands(content) {
+    const commands = [];
+    
+    // Format: "- **User Instructions**:" followed by code block
+    const instructionsMatch = content.match(/-\s*\*\*User Instructions?\*\*\s*:\s*\n\s*```(?:bash)?\n([\s\S]*?)```/i);
+    if (instructionsMatch) {
+      const cmdLines = instructionsMatch[1].split('\n');
+      for (const line of cmdLines) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          commands.push(trimmed);
+        }
+      }
+    }
+    
+    // Also look for standalone code blocks with bash commands
+    const codeBlocks = content.match(/```bash\n([\s\S]*?)```/g);
+    if (codeBlocks) {
+      for (const block of codeBlocks) {
+        const cmdContent = block.replace(/```bash\n|```/g, '');
+        const cmdLines = cmdContent.split('\n');
+        for (const line of cmdLines) {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#') && !commands.includes(trimmed)) {
+            commands.push(trimmed);
+          }
+        }
+      }
+    }
+    
+    return commands;
+  }
+
+  /**
+   * Extract task description from "- **Task**:" format
+   * @param {string} content - Step content
+   * @returns {string|null} Task description
+   */
+  static extractTaskDescription(content) {
+    const taskMatch = content.match(/-\s*\*\*Task\*\*\s*:\s*(.+)/i);
+    if (taskMatch) {
+      return taskMatch[1].trim();
+    }
+    return null;
+  }
+
+  /**
+   * Extract technical details (estimated time, etc.)
+   * @param {string} content - Step content
+   * @returns {Object} Technical details
+   */
+  static extractTechDetails(content) {
+    const details = {};
+    
+    // Estimated time: "- **Estimated**: 4 hours"
+    const estimatedMatch = content.match(/-\s*\*\*Estimated\*\*\s*:\s*(.+)/i);
+    if (estimatedMatch) {
+      details.estimatedTime = estimatedMatch[1].trim();
+    }
+    
+    // Tech stack hints
+    const techKeywords = ['React', 'Next.js', 'NestJS', 'Prisma', 'TypeScript', 'Tailwind', 
+                          'Socket.io', 'Stripe', 'Google Maps', 'Firebase', 'PostgreSQL', 'Redis'];
+    details.techStack = techKeywords.filter(tech => content.includes(tech));
+    
+    return details;
+  }
+
+  /**
    * Extract dependencies from step content
+   * Enhanced V2: Better parsing of "- **Depends on**:" format
    * @param {string} content - Step content
    * @param {number} stepNumber - Current step number
    * @returns {Object} Dependencies info
@@ -127,9 +276,27 @@ class PlanParser {
     // Check for parallel flag
     result.parallel = /\(parallel\)|\(parallèle\)|can\s+run\s+in\s+parallel|peut\s+s'exécuter\s+en\s+parallèle/i.test(content);
     
-    // Format: "Depends on: Step 1, Step 2" or "Dépend de: Étape 1"
+    // Format 1: "- **Depends on**: Step 1, Step 3" (bold markdown format)
+    const boldDepMatch = content.match(/-\s*\*\*Depends?\s*on\*\*\s*:\s*([^\n]+)/i);
+    if (boldDepMatch) {
+      const depStr = boldDepMatch[1].toLowerCase();
+      
+      // Check for "none"
+      if (depStr.includes('none') || depStr.includes('aucun')) {
+        return result;
+      }
+      
+      // Extract step numbers
+      const depNums = depStr.match(/\d+/g);
+      if (depNums) {
+        result.dependsOn = [...new Set(depNums.map(n => parseInt(n)))];
+        return result;
+      }
+    }
+    
+    // Format 2: "Depends on: Step 1, Step 2" or "Dépend de: Étape 1" (non-bold)
     const depMatch = content.match(/(?:depends?\s+on|dépend\s+de|requires?|nécessite|prérequis)\s*:\s*([^\n]+)/i);
-    if (depMatch) {
+    if (depMatch && result.dependsOn.length === 0) {
       const depStr = depMatch[1].toLowerCase();
       
       // Check for "none" or "aucune"
@@ -144,7 +311,7 @@ class PlanParser {
       }
     }
     
-    // Format: "Step Dependencies: Step 1 completed"
+    // Format 3: "Step Dependencies: Step 1 completed"
     const stepDepMatch = content.match(/step\s+dependencies?\s*:\s*([^\n]+)/i);
     if (stepDepMatch && result.dependsOn.length === 0) {
       const depStr = stepDepMatch[1].toLowerCase();
@@ -156,7 +323,7 @@ class PlanParser {
       }
     }
     
-    // Format: "After: Step 1 AND Step 2" (requires both)
+    // Format 4: "After: Step 1 AND Step 2" (requires both)
     const afterMatch = content.match(/after\s*:\s*([^\n]+)/i);
     if (afterMatch && result.dependsOn.length === 0) {
       const depNums = afterMatch[1].match(/\d+/g);
@@ -170,37 +337,105 @@ class PlanParser {
 
   /**
    * Extract module assignment from step content
+   * Enhanced to properly parse "- **Module**: xxx" format
    * @param {string} content - Step content
-   * @returns {string|null} Module key
+   * @returns {string|null} Module key or array for multi-module steps
    */
   static extractModule(content) {
-    const moduleMatch = content.match(/(?:module|composant)\s*:\s*(\w+)/i);
+    // Format 1: "- **Module**: frontend" or "- **Module**: backend, frontend"
+    const moduleMatch = content.match(/-\s*\*\*Module\*\*\s*:\s*([^\n]+)/i);
     if (moduleMatch) {
-      return moduleMatch[1].toLowerCase();
+      const moduleStr = moduleMatch[1].trim().toLowerCase();
+      // Handle multiple modules (comma-separated)
+      if (moduleStr.includes(',')) {
+        return moduleStr.split(',').map(m => m.trim()).filter(m => m);
+      }
+      return moduleStr;
     }
     
-    // Try to detect from keywords
+    // Format 2: "Module: xxx" without bold
+    const simpleMatch = content.match(/(?:^|\n)\s*module\s*:\s*(\w+)/im);
+    if (simpleMatch) {
+      return simpleMatch[1].toLowerCase();
+    }
+    
+    // Intelligent detection based on content analysis
     const lowerContent = content.toLowerCase();
-    if (lowerContent.includes('frontend') || lowerContent.includes('ui') || lowerContent.includes('interface')) {
-      return 'frontend';
-    }
-    if (lowerContent.includes('backend') || lowerContent.includes('server') || lowerContent.includes('api')) {
-      return 'backend';
-    }
-    if (lowerContent.includes('database') || lowerContent.includes('db') || lowerContent.includes('schema')) {
-      return 'database';
-    }
-    if (lowerContent.includes('infra') || lowerContent.includes('deploy') || lowerContent.includes('docker')) {
-      return 'infra';
-    }
-    if (lowerContent.includes('auth') || lowerContent.includes('login') || lowerContent.includes('security')) {
-      return 'auth';
-    }
-    if (lowerContent.includes('test') || lowerContent.includes('cypress') || lowerContent.includes('jest')) {
-      return 'testing';
+    const stepName = (content.match(/Step\s+\d+:\s*([^\n]+)/i) || ['', ''])[1].toLowerCase();
+    
+    // Backend indicators (NestJS, API, Module, Service, Controller)
+    const backendIndicators = [
+      'nestjs', 'express', 'controller', 'service', 'module.ts', 
+      '.service.ts', '.controller.ts', 'gateway', 'backend',
+      'apps/api', 'api/src', 'webhook', 'pricing module', 'rides module',
+      'admin module', 'auth module', 'users module', 'drivers module',
+      'matching algorithm', 'stripe integration backend'
+    ];
+    
+    // Frontend indicators (React, UI, Page, Component)
+    const frontendIndicators = [
+      'react', 'next.js', 'component', 'page.tsx', '.tsx', 'ui', 
+      'interface', 'dashboard ui', 'booking ui', 'payment ui',
+      'registration ui', 'apps/web', 'web/app', 'frontend',
+      'form.tsx', 'modal.tsx', 'shadcn', 'tailwind'
+    ];
+    
+    // Infra indicators
+    const infraIndicators = [
+      'docker', 'terraform', 'aws', 'ci/cd', 'pipeline', 'deploy',
+      'kubernetes', 'monitoring', 'alerting', 'performance optimization',
+      'security audit', 'infrastructure'
+    ];
+    
+    // Auth indicators
+    const authIndicators = [
+      'auth module', 'authentication', 'jwt', 'passport', 'login',
+      'middleware', 'protected routes', 'guard'
+    ];
+    
+    // Database indicators
+    const databaseIndicators = [
+      'database', 'prisma', 'migration', 'schema.prisma', 'seed',
+      'postgresql', 'mongodb', 'redis'
+    ];
+    
+    // Testing indicators
+    const testingIndicators = [
+      'test', 'e2e', 'cypress', 'playwright', 'jest', 'spec.ts'
+    ];
+    
+    // Count matches for each category
+    const scores = {
+      backend: backendIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
+      frontend: frontendIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
+      infra: infraIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
+      auth: authIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
+      database: databaseIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
+      testing: testingIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length
+    };
+    
+    // Special case: if step mentions both backend and frontend explicitly
+    if (lowerContent.includes('backend') && lowerContent.includes('frontend')) {
+      // Check which is more dominant
+      if (stepName.includes('ui') || stepName.includes('frontend')) {
+        return 'frontend';
+      }
+      if (stepName.includes('backend') || stepName.includes('module')) {
+        return 'backend';
+      }
     }
     
-    return null;
+    // Find highest score
+    let bestModule = null;
+    let bestScore = 0;
+    for (const [module, score] of Object.entries(scores)) {
+      if (score > bestScore) {
+        bestScore = score;
+        bestModule = module;
+      }
+    }
+    
+    return bestModule;
   }
 
   /**
@@ -224,59 +459,95 @@ class PlanParser {
   }
 
   /**
-   * Extract tasks from "### Step X:" format
+   * Extract tasks from "### Step X:" or "#### Step X:" format
+   * Enhanced to create detailed, actionable tasks
    */
   static extractTasksFromStepFormat(content) {
     const tasks = [];
-    const lines = content.split('\n');
+    const files = this.extractFiles(content);
+    const commands = this.extractUserCommands(content);
     
-    let inTask = false;
-    let currentTask = null;
+    // Extract main task description
+    const taskMatch = content.match(/-\s*\*\*Task\*\*\s*:\s*(.+)/i);
+    if (taskMatch) {
+      const mainTask = {
+        description: taskMatch[1].trim(),
+        completed: false,
+        type: 'main'
+      };
+      tasks.push(mainTask);
+    }
     
-    for (const line of lines) {
-      const trimmed = line.trim();
+    // Create tasks from files to create
+    if (files.length > 0) {
+      // Group files by directory for better organization
+      const filesByDir = {};
+      for (const file of files) {
+        const dir = file.split('/').slice(0, -1).join('/');
+        if (!filesByDir[dir]) filesByDir[dir] = [];
+        filesByDir[dir].push(file);
+      }
       
-      // Look for "- **Task**:" pattern
-      if (trimmed.startsWith('- **Task**:')) {
-        if (currentTask) tasks.push(currentTask);
-        currentTask = {
-          description: trimmed.replace('- **Task**:', '').trim(),
-          completed: false
-        };
-        inTask = true;
-      }
-      // Look for "- **Files**:" or other sections to extract info
-      else if (trimmed.startsWith('- **') && currentTask) {
-        const key = trimmed.match(/\*\*([^*]+)\*\*:/)?.[1]?.toLowerCase();
-        if (key && !['files', 'dependencies', 'instructions'].includes(key)) {
-          currentTask.description += ` (${trimmed.replace(/^-\s*\*\*[^*]+\*\*:\s*/, '')})`;
-        }
-      }
-      // Regular task items
-      else if (trimmed.startsWith('- ') && !trimmed.startsWith('- **')) {
-        if (!currentTask) {
-          currentTask = {
-            description: trimmed.substring(2),
-            completed: false
-          };
-          tasks.push(currentTask);
-          currentTask = null;
+      // Create a task for each group of files
+      for (const [dir, dirFiles] of Object.entries(filesByDir)) {
+        if (dirFiles.length === 1) {
+          tasks.push({
+            description: `Créer le fichier \`${dirFiles[0]}\``,
+            completed: false,
+            type: 'file',
+            file: dirFiles[0]
+          });
+        } else if (dirFiles.length <= 3) {
+          for (const file of dirFiles) {
+            tasks.push({
+              description: `Créer \`${file}\``,
+              completed: false,
+              type: 'file',
+              file: file
+            });
+          }
+        } else {
+          tasks.push({
+            description: `Créer les fichiers dans \`${dir}/\` (${dirFiles.length} fichiers)`,
+            completed: false,
+            type: 'files',
+            files: dirFiles,
+            details: dirFiles.map(f => `- \`${f}\``).join('\n')
+          });
         }
       }
     }
     
-    if (currentTask) tasks.push(currentTask);
+    // Create tasks from commands
+    if (commands.length > 0) {
+      const cmdGroup = commands.slice(0, 5); // Limit to 5 commands per task
+      tasks.push({
+        description: `Exécuter les commandes d'installation/configuration`,
+        completed: false,
+        type: 'commands',
+        commands: cmdGroup,
+        details: cmdGroup.map(c => `\`${c}\``).join('\n')
+      });
+    }
     
-    // If no tasks found, create one from the title
+    // If still no tasks, create one from title
     if (tasks.length === 0) {
-      const titleMatch = content.match(/^([^\n]+)/);  
+      const titleMatch = content.match(/Step\s+\d+:\s*([^\n]+)/i);
       if (titleMatch) {
         tasks.push({
           description: titleMatch[1].trim(),
-          completed: false
+          completed: false,
+          type: 'main'
         });
       }
     }
+    
+    // Add validation task at the end
+    tasks.push({
+      description: 'Vérifier que tout fonctionne (build + runtime)',
+      completed: false,
+      type: 'validation'
+    });
     
     return tasks;
   }

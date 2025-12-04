@@ -157,30 +157,106 @@ class ModuleManager {
 
   /**
    * Auto-assign steps to modules based on step names/content
+   * Enhanced V2: Better detection of backend vs frontend
    * @param {Object[]} steps - Steps to assign
    * @returns {Object} Assignments
    */
   autoAssignSteps(steps) {
     const assignments = {};
+    
+    // Enhanced keywords with weighted scores
     const keywords = {
-      frontend: ['ui', 'component', 'page', 'style', 'css', 'react', 'vue', 'interface', 'layout'],
-      backend: ['server', 'controller', 'service', 'middleware', 'route', 'express', 'nest'],
-      api: ['api', 'endpoint', 'rest', 'graphql', 'request', 'response'],
-      database: ['database', 'db', 'schema', 'migration', 'model', 'prisma', 'mongo', 'sql'],
-      infra: ['deploy', 'docker', 'kubernetes', 'aws', 'cloud', 'ci', 'cd', 'terraform'],
-      auth: ['auth', 'login', 'register', 'jwt', 'oauth', 'permission', 'role'],
-      testing: ['test', 'spec', 'cypress', 'jest', 'e2e', 'unit']
+      backend: {
+        high: ['nestjs', 'backend', 'controller', 'service', 'module.ts', 'gateway', 
+               'apps/api', 'api/src', '.service.ts', '.controller.ts', 'pricing module',
+               'rides module', 'admin module', 'users module', 'drivers module',
+               'matching algorithm', 'stripe integration backend', 'admin backend',
+               'websocket gateway', 'driver registration backend'],
+        medium: ['server', 'middleware', 'route', 'express', 'endpoint'],
+        low: ['api', 'webhook']
+      },
+      frontend: {
+        high: ['frontend', 'ui', 'page.tsx', 'component.tsx', 'dashboard ui', 
+               'booking ui', 'payment ui', 'registration ui', 'apps/web', 
+               'web/app', 'form.tsx', 'modal.tsx', 'shadcn', 'interface'],
+        medium: ['react', 'next.js', 'tailwind', 'component', 'page'],
+        low: ['style', 'css', 'layout']
+      },
+      infra: {
+        high: ['terraform', 'infrastructure', 'ci/cd', 'pipeline', 'monitoring',
+               'alerting', 'performance optimization', 'security audit', 
+               'docker environment'],
+        medium: ['docker', 'kubernetes', 'aws', 'deploy', 'cloud'],
+        low: ['build', 'config']
+      },
+      auth: {
+        high: ['auth module', 'authentication', 'jwt strategy', 'auth middleware',
+               'protected routes', 'auth tests', 'create auth'],
+        medium: ['auth', 'login', 'passport', 'guard'],
+        low: ['permission', 'role', 'session']
+      },
+      database: {
+        high: ['setup database', 'prisma schema', 'migration', 'database schema'],
+        medium: ['database', 'prisma', 'postgresql', 'mongodb'],
+        low: ['db', 'schema', 'seed']
+      },
+      testing: {
+        high: ['e2e testing', 'write tests', 'auth tests', 'cypress'],
+        medium: ['test', 'spec.ts', 'playwright', 'jest'],
+        low: ['unit', 'coverage']
+      }
     };
 
     for (const step of steps) {
+      // First check if step already has a module assigned
+      if (step.module) {
+        const moduleKey = Array.isArray(step.module) ? step.module[0] : step.module;
+        if (this.modules.has(moduleKey)) {
+          assignments[step.number] = moduleKey;
+          continue;
+        }
+      }
+      
       const stepText = `${step.name} ${step.objective || ''}`.toLowerCase();
-      let bestMatch = null;
-      let bestScore = 0;
+      const scores = {};
 
-      for (const [moduleKey, moduleKeywords] of Object.entries(keywords)) {
+      for (const [moduleKey, keywordGroups] of Object.entries(keywords)) {
         if (!this.modules.has(moduleKey)) continue;
 
-        const score = moduleKeywords.filter(kw => stepText.includes(kw)).length;
+        let score = 0;
+        // High priority keywords (weight: 3)
+        score += (keywordGroups.high || []).filter(kw => stepText.includes(kw)).length * 3;
+        // Medium priority keywords (weight: 2)
+        score += (keywordGroups.medium || []).filter(kw => stepText.includes(kw)).length * 2;
+        // Low priority keywords (weight: 1)
+        score += (keywordGroups.low || []).filter(kw => stepText.includes(kw)).length * 1;
+
+        scores[moduleKey] = score;
+      }
+
+      // Special rules for disambiguation
+      // Rule 1: If "backend" is explicitly in name, prefer backend
+      if (stepText.includes('backend') && this.modules.has('backend')) {
+        scores.backend = (scores.backend || 0) + 5;
+      }
+      
+      // Rule 2: If "ui" or "frontend" is explicitly in name, prefer frontend
+      if ((stepText.includes(' ui') || stepText.includes('frontend')) && this.modules.has('frontend')) {
+        scores.frontend = (scores.frontend || 0) + 5;
+      }
+      
+      // Rule 3: Module/Service/Controller patterns are backend
+      if (/\b(module|service|controller|gateway)\b/.test(stepText) && 
+          !stepText.includes('ui') && !stepText.includes('frontend')) {
+        if (this.modules.has('backend')) {
+          scores.backend = (scores.backend || 0) + 3;
+        }
+      }
+
+      // Find highest score
+      let bestMatch = null;
+      let bestScore = 0;
+      for (const [moduleKey, score] of Object.entries(scores)) {
         if (score > bestScore) {
           bestScore = score;
           bestMatch = moduleKey;

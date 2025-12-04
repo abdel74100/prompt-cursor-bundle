@@ -269,6 +269,7 @@ class CodeRunGenerator {
 
 	/**
 	 * Generate Instructions directory and step files
+	 * Enhanced V2: Rich instructions with files, commands, and detailed TODOs
 	 */
 	async generateInstructionsFiles() {
 		const instructionsDir = path.join(this.outputDir, this.dirs.INSTRUCTIONS);
@@ -283,126 +284,14 @@ class CodeRunGenerator {
 			if (error.code !== "EEXIST") throw error;
 		}
 
-		// Use simple template if steps have tasks array
-		const hasTasksArray = this.steps.some(s => Array.isArray(s.tasks));
-		const templateName = hasTasksArray ? "instructions-template-simple.md" : "instructions-template-simple.md";
-		
-		const templatePath = path.join(
-			__dirname,
-			`../prompts/${templateName}`,
-		);
-		const template = await fs.readFile(templatePath, "utf-8");
-
-		// Generate a file for each step
+		// Generate a file for each step using enhanced template
 		const createdFiles = [];
 		for (let i = 0; i < this.steps.length; i++) {
 			const step = this.steps[i];
 			const stepNumber = step.number || (i + 1);
 			
-			// Generate tasks list if tasks array exists
-			let tasksList = '';
-			if (Array.isArray(step.tasks) && step.tasks.length > 0) {
-				step.tasks.forEach((task, idx) => {
-					tasksList += `- [ ] **Task ${idx + 1}:** ${task.description}\n`;
-					if (task.details) {
-						tasksList += `  - Détails: ${task.details}\n`;
-					}
-					if (task.files) {
-						tasksList += `  - Fichiers: ${task.files}\n`;
-					}
-					tasksList += '\n';
-				});
-			} else {
-				tasksList = '- [ ] Voir le plan d\'implémentation pour les tâches détaillées\n';
-			}
-			
-			// Generate tests list with specific criteria
-			let testsList = '';
-			let cypressTests = '';
-			
-			if (Array.isArray(step.tasks) && step.tasks.length > 0) {
-				step.tasks.slice(0, 5).forEach((task, idx) => {
-					testsList += `${idx + 1}. **Test:** ${task.description}\n`;
-					
-					// Generate specific test criteria based on task description
-					const taskLower = task.description.toLowerCase();
-					let testCriteria = '';
-					let cypressTest = '';
-					
-					if (taskLower.includes('initialize') || taskLower.includes('setup') && !taskLower.includes('set up')) {
-						testCriteria = 'Le projet est correctement initialisé avec tous les fichiers de configuration';
-						cypressTest = `  it('devrait avoir tous les fichiers de configuration', () => {\n    cy.exec('ls package.json').its('code').should('eq', 0);\n  });\n\n`;
-					} else if (taskLower.includes('install') || taskLower.includes('configure') || taskLower.includes('set up')) {
-						testCriteria = 'Toutes les dépendances sont installées et configurées correctement';
-						cypressTest = `  it('devrait avoir toutes les dépendances installées', () => {\n    cy.exec('npm list').its('code').should('eq', 0);\n  });\n\n`;
-					} else if (taskLower.includes('folder') || taskLower.includes('structure')) {
-						testCriteria = 'La structure de dossiers est créée selon les spécifications';
-						cypressTest = `  it('devrait avoir la structure de dossiers correcte', () => {\n    cy.task('checkFolderStructure').should('be.true');\n  });\n\n`;
-					} else if (taskLower.includes('api') || taskLower.includes('service')) {
-						testCriteria = 'Les appels API fonctionnent et retournent les données attendues';
-						cypressTest = `  it('devrait effectuer les appels API avec succès', () => {\n    cy.request('/api/endpoint').its('status').should('eq', 200);\n  });\n\n`;
-					} else if (taskLower.includes('component')) {
-						testCriteria = 'Le composant s\'affiche correctement et répond aux interactions';
-						cypressTest = `  it('devrait afficher le composant correctement', () => {\n    cy.get('[data-testid="component"]').should('be.visible');\n    cy.get('[data-testid="component"]').click();\n  });\n\n`;
-					} else if (taskLower.includes('state') || taskLower.includes('context')) {
-						testCriteria = 'L\'état est géré correctement et les mises à jour sont propagées';
-						cypressTest = `  it('devrait gérer l\'état correctement', () => {\n    cy.window().its('store.getState').should('exist');\n  });\n\n`;
-					} else if (taskLower.includes('test')) {
-						testCriteria = 'Les tests passent avec une couverture minimale de 80%';
-					} else if (taskLower.includes('animation')) {
-						testCriteria = 'Les animations sont fluides et s\'exécutent à 60 FPS';
-						cypressTest = `  it('devrait avoir des animations fluides', () => {\n    cy.get('[data-testid="animated-element"]').should('have.css', 'transition');\n  });\n\n`;
-					} else if (taskLower.includes('responsive')) {
-						testCriteria = 'L\'interface s\'adapte correctement à toutes les tailles d\'écran';
-						cypressTest = `  it('devrait être responsive', () => {\n    cy.viewport('iphone-6');\n    cy.get('[data-testid="main"]').should('be.visible');\n    cy.viewport('macbook-15');\n    cy.get('[data-testid="main"]').should('be.visible');\n  });\n\n`;
-					} else if (taskLower.includes('storage') || taskLower.includes('localstorage')) {
-						testCriteria = 'Les données sont correctement sauvegardées et récupérées';
-						cypressTest = `  it('devrait sauvegarder dans localStorage', () => {\n    cy.window().its('localStorage').invoke('getItem', 'key').should('exist');\n  });\n\n`;
-					} else if (taskLower.includes('error')) {
-						testCriteria = 'Les erreurs sont gérées gracieusement avec des messages clairs';
-						cypressTest = `  it('devrait gérer les erreurs', () => {\n    cy.get('[data-testid="error"]').should('contain', 'Error');\n  });\n\n`;
-					} else if (taskLower.includes('build') || taskLower.includes('deploy')) {
-						testCriteria = 'Le build se compile sans erreur et l\'application se déploie correctement';
-						cypressTest = `  it('devrait builder sans erreur', () => {\n    cy.exec('npm run build').its('code').should('eq', 0);\n  });\n\n`;
-					} else {
-						// Default more specific than before
-						testCriteria = `L'implémentation de "${task.description}" est complète et fonctionnelle`;
-						cypressTest = `  it('devrait valider: ${task.description}', () => {\n    // TODO: Ajouter les assertions spécifiques\n  });\n\n`;
-					}
-					
-					testsList += `   - Vérifie que: ${testCriteria}\n\n`;
-					cypressTests += cypressTest;
-				});
-			} else {
-				testsList = '1. **Test de base:** À définir selon les fonctionnalités\n';
-				cypressTests = '  it(\'devrait valider l\\\'étape\', () => {\n    // TODO: Ajouter les tests\n  });\n';
-			}
-
-			// Determine dependencies text
-			let dependenciesText = 'Aucune';
-			if (stepNumber > 1) {
-				if (step.dependsOn && step.dependsOn.length > 0) {
-					dependenciesText = step.dependsOn.map(d => `Étape ${d}`).join(', ') + ' complétée(s)';
-				} else {
-					dependenciesText = `Étape ${stepNumber - 1} complétée`;
-				}
-			}
-
-			const replacements = {
-				STEP_NUMBER: stepNumber.toString(),
-				STEP_NAME: step.name || `Étape ${stepNumber}`,
-				STEP_OBJECTIVE: step.objective || "À définir",
-				STEP_DEPENDENCIES: dependenciesText,
-				TASKS_LIST: tasksList,
-				TESTS_LIST: testsList,
-				CYPRESS_TESTS: cypressTests || '  // Tests Cypress à ajouter ici',
-				EXT: this.fileExtension,
-				TEST_COMMAND: step.testCommand || "npm test",
-				NEXT_STEP_NUMBER: (stepNumber + 1).toString(),
-				NEXT_STEP_NAME: this.steps[i + 1]?.name || "Prochaine étape",
-			};
-
-			const content = this.replacePlaceholders(template, replacements);
+			// Generate rich instruction content
+			const content = this.generateRichInstructionContent(step, stepNumber, i);
 			const fileName = `instructions-step${stepNumber}.md`;
 			const filePath = path.join(instructionsDir, fileName);
 
@@ -412,6 +301,230 @@ class CodeRunGenerator {
 		}
 
 		return createdFiles;
+	}
+
+	/**
+	 * Generate rich instruction content for a step
+	 * Includes files to create, commands to run, and detailed TODOs
+	 */
+	generateRichInstructionContent(step, stepNumber, index) {
+		const lines = [];
+		
+		// Header
+		lines.push(`# Instructions - Étape ${stepNumber} : ${step.name}`);
+		lines.push('');
+		
+		// Overview section
+		lines.push('## 📋 Vue d\'ensemble');
+		lines.push('');
+		
+		// Module info
+		const moduleDisplay = Array.isArray(step.module) ? step.module.join(', ') : (step.module || 'Non défini');
+		lines.push(`**Module:** ${moduleDisplay}`);
+		
+		// Estimated time
+		const estimatedTime = step.techDetails?.estimatedTime || step.estimatedTime || '2-4 heures';
+		lines.push(`**Estimation:** ${estimatedTime}`);
+		
+		// Dependencies
+		let dependenciesText = 'Aucune';
+		if (stepNumber > 1) {
+			if (step.dependsOn && step.dependsOn.length > 0) {
+				dependenciesText = step.dependsOn.map(d => `Étape ${d}`).join(', ') + ' complétée(s)';
+			} else {
+				dependenciesText = `Étape ${stepNumber - 1} complétée`;
+			}
+		}
+		lines.push(`**Dépendances:** ${dependenciesText}`);
+		
+		// Objective
+		if (step.objective && step.objective !== step.name) {
+			lines.push('');
+			lines.push(`**Objectif:** ${step.objective}`);
+		}
+		
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		
+		// Files to create section
+		if (step.files && step.files.length > 0) {
+			lines.push('## 📁 Fichiers à créer');
+			lines.push('');
+			for (const file of step.files) {
+				lines.push(`- \`${file}\``);
+			}
+			lines.push('');
+			lines.push('---');
+			lines.push('');
+		}
+		
+		// Commands to run section
+		if (step.userCommands && step.userCommands.length > 0) {
+			lines.push('## 💻 Commandes à exécuter');
+			lines.push('');
+			lines.push('```bash');
+			for (const cmd of step.userCommands) {
+				lines.push(cmd);
+			}
+			lines.push('```');
+			lines.push('');
+			lines.push('---');
+			lines.push('');
+		}
+		
+		// TODO List section
+		lines.push('## ✅ TODO Liste');
+		lines.push('');
+		
+		if (Array.isArray(step.tasks) && step.tasks.length > 0) {
+			let taskIndex = 1;
+			for (const task of step.tasks) {
+				if (task.type === 'main') {
+					lines.push(`- [ ] **${taskIndex}. ${task.description}**`);
+				} else if (task.type === 'file') {
+					lines.push(`- [ ] ${taskIndex}. Créer \`${task.file}\``);
+				} else if (task.type === 'files') {
+					lines.push(`- [ ] ${taskIndex}. ${task.description}`);
+					if (task.files) {
+						for (const f of task.files.slice(0, 5)) {
+							lines.push(`  - \`${f}\``);
+						}
+						if (task.files.length > 5) {
+							lines.push(`  - ... et ${task.files.length - 5} autres fichiers`);
+						}
+					}
+				} else if (task.type === 'commands') {
+					lines.push(`- [ ] ${taskIndex}. Exécuter les commandes d'installation`);
+					if (task.commands) {
+						for (const c of task.commands.slice(0, 3)) {
+							lines.push(`  - \`${c}\``);
+						}
+					}
+				} else if (task.type === 'validation') {
+					lines.push(`- [ ] ${taskIndex}. ✅ Validation finale (build + runtime)`);
+				} else {
+					lines.push(`- [ ] ${taskIndex}. ${task.description}`);
+				}
+				taskIndex++;
+			}
+		} else {
+			lines.push('- [ ] 1. Implémenter les fonctionnalités de cette étape');
+			lines.push('- [ ] 2. Vérifier que le code compile');
+			lines.push('- [ ] 3. Tester manuellement');
+			lines.push('- [ ] 4. Écrire les tests automatisés');
+		}
+		
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		
+		// Tech Stack hints
+		if (step.techDetails?.techStack && step.techDetails.techStack.length > 0) {
+			lines.push('## 🛠️ Technologies utilisées');
+			lines.push('');
+			lines.push(step.techDetails.techStack.map(t => `\`${t}\``).join(' • '));
+			lines.push('');
+			lines.push('---');
+			lines.push('');
+		}
+		
+		// Tests section
+		lines.push('## 🧪 Tests requis');
+		lines.push('');
+		lines.push(`**Fichier:** \`tests/step${stepNumber}_test.${this.fileExtension}\``);
+		lines.push('');
+		lines.push('**Tests à implémenter:**');
+		lines.push('');
+		
+		if (Array.isArray(step.tasks) && step.tasks.length > 0) {
+			const testableTasks = step.tasks.filter(t => t.type !== 'validation' && t.type !== 'commands');
+			for (let i = 0; i < Math.min(testableTasks.length, 5); i++) {
+				const task = testableTasks[i];
+				const testCriteria = this.generateTestCriteria(task.description);
+				lines.push(`${i + 1}. **${task.description.substring(0, 50)}${task.description.length > 50 ? '...' : ''}**`);
+				lines.push(`   - Vérifie que: ${testCriteria}`);
+				lines.push('');
+			}
+		} else {
+			lines.push('1. **Test de base**');
+			lines.push('   - Vérifie que: L\'étape est correctement implémentée');
+		}
+		
+		lines.push('');
+		lines.push('**Commande:**');
+		lines.push('```bash');
+		lines.push('npm test');
+		lines.push('```');
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		
+		// Validation criteria
+		lines.push('## 🔍 Critères de validation');
+		lines.push('');
+		lines.push('- [ ] Tous les TODOs ci-dessus complétés');
+		lines.push(`- [ ] Tests step${stepNumber}_test passent à 100%`);
+		lines.push('- [ ] Build s\'exécute sans erreur');
+		lines.push('- [ ] Application démarre correctement');
+		lines.push('- [ ] Aucune régression sur les étapes précédentes');
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		
+		// Next step
+		lines.push('## 🔄 Prochaine étape');
+		lines.push('');
+		const nextStep = this.steps[index + 1];
+		if (nextStep) {
+			lines.push(`Une fois cette étape validée, passez à:`);
+			lines.push(`**Étape ${nextStep.number || (index + 2)}: ${nextStep.name}**`);
+		} else {
+			lines.push('🎉 **C\'est la dernière étape du projet !**');
+		}
+		lines.push('');
+		
+		return lines.join('\n');
+	}
+
+	/**
+	 * Generate test criteria based on task description
+	 */
+	generateTestCriteria(description) {
+		const lower = description.toLowerCase();
+		
+		if (lower.includes('créer') && lower.includes('fichier')) {
+			return 'Le fichier existe et contient le code attendu';
+		}
+		if (lower.includes('setup') || lower.includes('init') || lower.includes('configure')) {
+			return 'Le projet/module est correctement configuré';
+		}
+		if (lower.includes('api') || lower.includes('endpoint')) {
+			return 'L\'API répond avec le bon status et les bonnes données';
+		}
+		if (lower.includes('component') || lower.includes('ui') || lower.includes('interface')) {
+			return 'Le composant s\'affiche correctement et est interactif';
+		}
+		if (lower.includes('auth') || lower.includes('login')) {
+			return 'L\'authentification fonctionne avec les bons credentials';
+		}
+		if (lower.includes('database') || lower.includes('prisma') || lower.includes('migration')) {
+			return 'Les données sont correctement persistées en base';
+		}
+		if (lower.includes('websocket') || lower.includes('realtime') || lower.includes('temps réel')) {
+			return 'Les événements sont émis et reçus en temps réel';
+		}
+		if (lower.includes('test') || lower.includes('spec')) {
+			return 'Tous les tests passent avec une couverture > 80%';
+		}
+		if (lower.includes('deploy') || lower.includes('build')) {
+			return 'Le build/déploiement s\'exécute sans erreur';
+		}
+		if (lower.includes('validation') || lower.includes('vérifier')) {
+			return 'L\'application fonctionne de bout en bout';
+		}
+		
+		return `L'implémentation de "${description.substring(0, 40)}..." est complète`;
 	}
 
 	/**
