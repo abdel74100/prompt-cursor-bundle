@@ -1,6 +1,6 @@
 {
 	"name": "@abdel-akh/prompt-cursor-bundle",
-	"version": "1.7.0",
+	"version": "1.8.0",
 	"author": "Abderrahim Akh",
 	"description": "Universal AI Prompt CLI - Works with Cursor, Claude, Windsurf, and GitHub Copilot",
 	"main": "src/index.js",
