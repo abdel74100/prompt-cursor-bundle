@@ -74,6 +74,35 @@ const MODULE_DEFINITIONS = {
 };
 
 /**
+ * Module dependencies - defines the order of development
+ * A module can only start after its dependencies are complete
+ */
+const MODULE_DEPENDENCIES = {
+  'infra': [],                    // First - project setup, no dependencies
+  'database': ['infra'],          // After infra - needs project structure
+  'auth': ['database'],           // After database - needs user tables
+  'backend': ['database', 'auth'], // After db + auth
+  'api': ['backend'],             // After backend - exposes services
+  'frontend': ['auth'],           // After auth - needs auth flow
+  'mobile': ['auth', 'api'],      // After auth + api
+  'testing': ['backend', 'frontend'] // After features are built
+};
+
+/**
+ * Module processing order (priority - lower = first)
+ */
+const MODULE_PRIORITY = {
+  'infra': 1,      // Setup first
+  'database': 2,   // Then database
+  'auth': 3,       // Then auth
+  'backend': 4,    // Then backend logic
+  'api': 5,        // Then API layer
+  'frontend': 6,   // Then UI
+  'mobile': 7,     // Then mobile
+  'testing': 8     // Finally tests
+};
+
+/**
  * Module Manager
  * Handles multi-module project structure
  */
@@ -130,8 +159,9 @@ class ModuleManager {
 
   /**
    * Assign steps to modules
+   * Enhanced V2: Support multi-module assignment (step can belong to multiple modules)
    * @param {Object[]} steps - All project steps
-   * @param {Object} assignments - Step to module assignments {stepNumber: moduleKey}
+   * @param {Object} assignments - Step to module assignments {stepNumber: moduleKey or [moduleKey1, moduleKey2]}
    */
   assignStepsToModules(steps, assignments = {}) {
     // Auto-assign if no assignments provided
@@ -144,11 +174,18 @@ class ModuleManager {
       module.steps = [];
     }
 
-    // Assign steps
+    // Assign steps - support multi-module
     for (const step of steps) {
-      const moduleKey = assignments[step.number];
-      if (moduleKey && this.modules.has(moduleKey)) {
-        this.modules.get(moduleKey).steps.push(step);
+      const moduleAssignment = assignments[step.number];
+      if (!moduleAssignment) continue;
+      
+      // Handle both single module and array of modules
+      const moduleKeys = Array.isArray(moduleAssignment) ? moduleAssignment : [moduleAssignment];
+      
+      for (const moduleKey of moduleKeys) {
+        if (this.modules.has(moduleKey)) {
+          this.modules.get(moduleKey).steps.push(step);
+        }
       }
     }
 
@@ -157,9 +194,9 @@ class ModuleManager {
 
   /**
    * Auto-assign steps to modules based on step names/content
-   * Enhanced V2: Better detection of backend vs frontend
+   * Enhanced V3: Support multi-module assignment
    * @param {Object[]} steps - Steps to assign
-   * @returns {Object} Assignments
+   * @returns {Object} Assignments - {stepNumber: moduleKey} or {stepNumber: [moduleKey1, moduleKey2]}
    */
   autoAssignSteps(steps) {
     const assignments = {};
@@ -173,7 +210,7 @@ class ModuleManager {
                'matching algorithm', 'stripe integration backend', 'admin backend',
                'websocket gateway', 'driver registration backend'],
         medium: ['server', 'middleware', 'route', 'express', 'endpoint'],
-        low: ['api', 'webhook']
+        low: ['webhook']
       },
       frontend: {
         high: ['frontend', 'ui', 'page.tsx', 'component.tsx', 'dashboard ui', 
@@ -182,37 +219,45 @@ class ModuleManager {
         medium: ['react', 'next.js', 'tailwind', 'component', 'page'],
         low: ['style', 'css', 'layout']
       },
+      api: {
+        high: ['api endpoint', 'rest api', 'graphql', 'api route', 'route.ts'],
+        medium: ['api', 'endpoint'],
+        low: []
+      },
       infra: {
         high: ['terraform', 'infrastructure', 'ci/cd', 'pipeline', 'monitoring',
                'alerting', 'performance optimization', 'security audit', 
-               'docker environment'],
+               'docker environment', 'docker configuration', 'production deployment'],
         medium: ['docker', 'kubernetes', 'aws', 'deploy', 'cloud'],
         low: ['build', 'config']
       },
       auth: {
         high: ['auth module', 'authentication', 'jwt strategy', 'auth middleware',
-               'protected routes', 'auth tests', 'create auth'],
+               'protected routes', 'auth tests', 'create auth', 'nextauth'],
         medium: ['auth', 'login', 'passport', 'guard'],
         low: ['permission', 'role', 'session']
       },
       database: {
-        high: ['setup database', 'prisma schema', 'migration', 'database schema'],
+        high: ['setup database', 'prisma schema', 'migration', 'database schema', 'database setup'],
         medium: ['database', 'prisma', 'postgresql', 'mongodb'],
         low: ['db', 'schema', 'seed']
       },
       testing: {
-        high: ['e2e testing', 'write tests', 'auth tests', 'cypress'],
+        high: ['e2e testing', 'write tests', 'auth tests', 'cypress', 'unit tests', 'e2e tests'],
         medium: ['test', 'spec.ts', 'playwright', 'jest'],
         low: ['unit', 'coverage']
       }
     };
 
     for (const step of steps) {
-      // First check if step already has a module assigned
+      // First check if step already has module(s) assigned from parser
       if (step.module) {
-        const moduleKey = Array.isArray(step.module) ? step.module[0] : step.module;
-        if (this.modules.has(moduleKey)) {
-          assignments[step.number] = moduleKey;
+        const moduleKeys = Array.isArray(step.module) ? step.module : [step.module];
+        // Filter to only modules that exist
+        const validModules = moduleKeys.filter(k => this.modules.has(k));
+        if (validModules.length > 0) {
+          // Store all valid modules for this step
+          assignments[step.number] = validModules.length === 1 ? validModules[0] : validModules;
           continue;
         }
       }
@@ -316,6 +361,7 @@ class ModuleManager {
 
   /**
    * Create module directory structure
+   * Only creates directories for modules that have steps
    * @returns {Promise<string[]>} Created directories
    */
   async createDirectoryStructure() {
@@ -326,8 +372,13 @@ class ModuleManager {
     await fs.mkdir(modulesDir, { recursive: true });
     created.push(modulesDir);
 
-    // Create directory for each module
+    // Create directory for each module ONLY if it has steps
     for (const [key, module] of this.modules) {
+      // Skip modules with no steps
+      if (!module.steps || module.steps.length === 0) {
+        continue;
+      }
+      
       const moduleDir = path.join(modulesDir, key);
       const workflowDir = path.join(moduleDir, 'workflow');
       const instructionsDir = path.join(moduleDir, 'Instructions');
@@ -340,6 +391,79 @@ class ModuleManager {
     }
 
     return created;
+  }
+  
+  /**
+   * Clean up empty module directories
+   * @returns {Promise<string[]>} Removed directories
+   */
+  async cleanupEmptyModules() {
+    const removed = [];
+    const modulesDir = path.join(this.projectDir, this.promptDir, 'modules');
+    
+    try {
+      const entries = await fs.readdir(modulesDir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        
+        const moduleDir = path.join(modulesDir, entry.name);
+        const isEmpty = await this.isDirectoryEmpty(moduleDir);
+        
+        if (isEmpty) {
+          await fs.rm(moduleDir, { recursive: true, force: true });
+          removed.push(entry.name);
+        }
+      }
+    } catch (error) {
+      // Ignore if modules dir doesn't exist
+    }
+    
+    return removed;
+  }
+  
+  /**
+   * Check if a directory is empty (recursively)
+   * @param {string} dirPath - Directory to check
+   * @returns {Promise<boolean>} True if empty
+   */
+  async isDirectoryEmpty(dirPath) {
+    try {
+      const entries = await fs.readdir(dirPath);
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry);
+        const stat = await fs.stat(fullPath);
+        
+        if (stat.isFile()) {
+          return false;
+        }
+        
+        if (stat.isDirectory()) {
+          const subEmpty = await this.isDirectoryEmpty(fullPath);
+          if (!subEmpty) return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      return true;
+    }
+  }
+  
+  /**
+   * Remove empty modules from the manager
+   * @returns {number} Number of modules removed
+   */
+  removeEmptyModules() {
+    let removed = 0;
+    for (const [key, module] of this.modules) {
+      if (module.steps.length === 0) {
+        this.modules.delete(key);
+        removed++;
+      }
+    }
+    return removed;
   }
 
   /**
@@ -386,16 +510,134 @@ class ModuleManager {
   }
 
   /**
+   * Get module dependencies
+   * @returns {Object} Dependencies map
+   */
+  static getModuleDependencies() {
+    return MODULE_DEPENDENCIES;
+  }
+
+  /**
+   * Get module priority order
+   * @returns {Object} Priority map
+   */
+  static getModulePriority() {
+    return MODULE_PRIORITY;
+  }
+
+  /**
+   * Sort modules by dependency order
+   * @param {string[]} moduleKeys - Module keys to sort
+   * @returns {string[]} Sorted module keys
+   */
+  sortByDependencies(moduleKeys) {
+    return moduleKeys.slice().sort((a, b) => {
+      return (MODULE_PRIORITY[a] || 99) - (MODULE_PRIORITY[b] || 99);
+    });
+  }
+
+  /**
+   * Get modules that have all dependencies satisfied
+   * @param {string[]} completedModules - Already completed modules
+   * @returns {string[]} Available modules
+   */
+  getAvailableModules(completedModules = []) {
+    const available = [];
+    
+    for (const [key, module] of this.modules) {
+      if (module.steps.length === 0) continue;
+      if (completedModules.includes(key)) continue;
+      
+      const deps = MODULE_DEPENDENCIES[key] || [];
+      const depsAreSatisfied = deps.every(dep => 
+        completedModules.includes(dep) || !this.modules.has(dep) || this.modules.get(dep).steps.length === 0
+      );
+      
+      if (depsAreSatisfied) {
+        available.push(key);
+      }
+    }
+    
+    return this.sortByDependencies(available);
+  }
+
+  /**
+   * Get recommended module order based on dependencies
+   * @returns {Object[]} Ordered modules with reasons
+   */
+  getRecommendedOrder() {
+    const orderedModules = [];
+    
+    // Module descriptions
+    const moduleReasons = {
+      'infra': 'Configuration initiale du projet et environnement',
+      'database': 'Définir le schéma de données',
+      'auth': 'Authentification nécessaire pour sécuriser les APIs',
+      'backend': 'Logique métier et services',
+      'api': 'Endpoints pour le frontend',
+      'frontend': 'Interface utilisateur',
+      'mobile': 'Application mobile',
+      'testing': 'Tests après les fonctionnalités principales'
+    };
+    
+    // Sort modules by priority
+    const sortedKeys = Array.from(this.modules.keys()).sort((a, b) => {
+      return (MODULE_PRIORITY[a] || 99) - (MODULE_PRIORITY[b] || 99);
+    });
+
+    for (const key of sortedKeys) {
+      const module = this.modules.get(key);
+      if (!module || module.steps.length === 0) continue;
+      
+      const deps = MODULE_DEPENDENCIES[key] || [];
+      const activeDeps = deps.filter(d => this.modules.has(d) && this.modules.get(d).steps.length > 0);
+      
+      orderedModules.push({
+        key,
+        module,
+        reason: moduleReasons[key] || 'Module personnalisé',
+        dependencies: activeDeps,
+        canParallel: ['frontend', 'mobile'].includes(key),
+        priority: MODULE_PRIORITY[key] || 99
+      });
+    }
+
+    return orderedModules;
+  }
+
+  /**
    * Generate master code-run.md with all modules
+   * Enhanced with recommended order
    * @returns {string} Markdown content
    */
   generateMasterCodeRun() {
     const lines = [];
     lines.push('# 📦 Master Code Run - Multi-Module Project\n');
     lines.push('---\n');
+    
+    // Add recommended order section
+    const orderedModules = this.getRecommendedOrder();
+    if (orderedModules.length > 0) {
+      lines.push('## 🎯 ORDRE RECOMMANDÉ DES MODULES\n');
+      lines.push('> Suivez cet ordre pour un développement optimal\n');
+      
+      let orderNum = 1;
+      for (const item of orderedModules) {
+        const parallelNote = item.canParallel ? ' *(peut être parallèle)*' : '';
+        lines.push(`${orderNum}. **${item.module.icon} ${item.module.name}**${parallelNote}`);
+        lines.push(`   - ${item.reason}`);
+        lines.push(`   - Code Run: \`modules/${item.key}/workflow/code-run.md\`\n`);
+        orderNum++;
+      }
+      lines.push('---\n');
+    }
+    
     lines.push('## 🗂️ MODULES\n');
 
     for (const [key, module] of this.modules) {
+      // Skip empty modules in the module list
+      if (module.steps.length === 0) continue;
+      
       const statusIcon = module.status === 'completed' ? '✅' : 
                         module.status === 'in_progress' ? '🟡' : '⏳';
       
@@ -409,18 +651,20 @@ class ModuleManager {
     lines.push('## 📊 OVERALL PROGRESS\n');
     lines.push(`**Total Progress:** ${this.getOverallProgress()}%\n`);
 
-    // Progress bars for each module
+    // Progress bars for each module (skip empty)
     for (const [key, module] of this.modules) {
+      if (module.steps.length === 0) continue;
       const bar = this.createProgressBar(module.progress, 20);
       lines.push(`${module.icon} ${module.name.padEnd(15)} ${bar} ${module.progress}%`);
     }
 
     lines.push('\n---\n');
     lines.push('## 🔄 WORKFLOW\n');
-    lines.push('1. Check each module\'s code-run.md');
-    lines.push('2. Complete steps in dependency order');
-    lines.push('3. Run `prompt-cursor complete` after each step');
-    lines.push('4. Check master progress here\n');
+    lines.push('1. Suivre l\'ordre recommandé ci-dessus');
+    lines.push('2. Consulter le code-run.md de chaque module');
+    lines.push('3. Compléter les étapes dans l\'ordre des dépendances');
+    lines.push('4. Exécuter `prompt-cursor complete` après chaque étape');
+    lines.push('5. Vérifier la progression globale ici\n');
 
     return lines.join('\n');
   }

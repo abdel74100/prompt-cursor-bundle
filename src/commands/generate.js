@@ -112,19 +112,12 @@ async function generateCommand(options) {
       complexMode = complexMode || answers.complexMode || false;
     }
     
-    // Ask for modules if complex mode enabled
+    // In complex mode, automatically use ALL modules (no interactive selection)
     if (complexMode && selectedModules.length === 0) {
-      const moduleChoices = ModuleManager.getModuleChoices();
-      const moduleAnswer = await inquirer.prompt([
-        {
-          type: 'checkbox',
-          name: 'modules',
-          message: '📦 Select project modules:',
-          choices: moduleChoices,
-          validate: (input) => input.length > 0 || 'Select at least one module'
-        }
-      ]);
-      selectedModules = moduleAnswer.modules;
+      selectedModules = Object.keys(ModuleManager.getModuleDefinitions());
+      console.log(chalk.blue(`📦 Mode complexe: tous les modules activés automatiquement`));
+      console.log(chalk.gray(`   → ${selectedModules.join(', ')}`));
+      console.log(chalk.gray(`   (L'IA structurera le plan selon les besoins du projet)\n`));
     }
     
     // Get provider configuration

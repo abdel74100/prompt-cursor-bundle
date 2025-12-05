@@ -8,6 +8,53 @@ const path = require('path');
  */
 class PlanParser {
   /**
+   * Normalize module name to standard key
+   * @param {string} name - Module name (e.g., "Backend", "API", "Infrastructure")
+   * @returns {string} Normalized module key
+   */
+  static normalizeModuleName(name) {
+    const normalized = name.toLowerCase().trim();
+    
+    // Map common variations to standard keys
+    const moduleMap = {
+      'frontend': 'frontend',
+      'front-end': 'frontend',
+      'front end': 'frontend',
+      'ui': 'frontend',
+      'client': 'frontend',
+      'web': 'frontend',
+      'backend': 'backend',
+      'back-end': 'backend',
+      'back end': 'backend',
+      'server': 'backend',
+      'api': 'api',
+      'rest': 'api',
+      'graphql': 'api',
+      'database': 'database',
+      'db': 'database',
+      'data': 'database',
+      'infra': 'infra',
+      'infrastructure': 'infra',
+      'devops': 'infra',
+      'cloud': 'infra',
+      'mobile': 'mobile',
+      'app': 'mobile',
+      'ios': 'mobile',
+      'android': 'mobile',
+      'auth': 'auth',
+      'authentication': 'auth',
+      'authorization': 'auth',
+      'security': 'auth',
+      'testing': 'testing',
+      'test': 'testing',
+      'tests': 'testing',
+      'qa': 'testing'
+    };
+    
+    return moduleMap[normalized] || normalized;
+  }
+
+  /**
    * Parse a plan file and extract structured steps
    * @param {string} filePath - Path to implementation-plan.md
    * @returns {Promise<Array>} Array of step objects
@@ -337,91 +384,195 @@ class PlanParser {
 
   /**
    * Extract module assignment from step content
-   * Enhanced to properly parse "- **Module**: xxx" format
+   * Enhanced V3: Better keywords with priority rules
    * @param {string} content - Step content
-   * @returns {string|null} Module key or array for multi-module steps
+   * @returns {string[]|string|null} Module key(s)
    */
   static extractModule(content) {
     // Format 1: "- **Module**: frontend" or "- **Module**: backend, frontend"
     const moduleMatch = content.match(/-\s*\*\*Module\*\*\s*:\s*([^\n]+)/i);
     if (moduleMatch) {
       const moduleStr = moduleMatch[1].trim().toLowerCase();
-      // Handle multiple modules (comma-separated)
       if (moduleStr.includes(',')) {
-        return moduleStr.split(',').map(m => m.trim()).filter(m => m);
+        const modules = moduleStr.split(',').map(m => this.normalizeModuleName(m.trim())).filter(m => m);
+        return modules.length === 1 ? modules[0] : modules;
       }
-      return moduleStr;
+      return this.normalizeModuleName(moduleStr);
     }
     
     // Format 2: "Module: xxx" without bold
-    const simpleMatch = content.match(/(?:^|\n)\s*module\s*:\s*(\w+)/im);
+    const simpleMatch = content.match(/(?:^|\n)\s*module\s*:\s*([^\n]+)/im);
     if (simpleMatch) {
-      return simpleMatch[1].toLowerCase();
+      const moduleStr = simpleMatch[1].trim().toLowerCase();
+      if (moduleStr.includes(',')) {
+        const modules = moduleStr.split(',').map(m => this.normalizeModuleName(m.trim())).filter(m => m);
+        return modules.length === 1 ? modules[0] : modules;
+      }
+      return this.normalizeModuleName(moduleStr);
     }
     
     // Intelligent detection based on content analysis
     const lowerContent = content.toLowerCase();
     const stepName = (content.match(/Step\s+\d+:\s*([^\n]+)/i) || ['', ''])[1].toLowerCase();
+    const combinedText = `${stepName} ${lowerContent}`;
     
-    // Backend indicators (NestJS, API, Module, Service, Controller)
-    const backendIndicators = [
-      'nestjs', 'express', 'controller', 'service', 'module.ts', 
-      '.service.ts', '.controller.ts', 'gateway', 'backend',
-      'apps/api', 'api/src', 'webhook', 'pricing module', 'rides module',
-      'admin module', 'auth module', 'users module', 'drivers module',
-      'matching algorithm', 'stripe integration backend'
+    // PRIORITY RULES: Check step name for high-priority patterns first
+    // These patterns override keyword scoring
+    
+    // INFRA priority patterns (setup, config, deploy, production)
+    const infraPriorityPatterns = [
+      /configuration\s+(du\s+)?projet/i,
+      /project\s+(setup|config|init)/i,
+      /infrastructure/i,
+      /déploiement|deploy/i,
+      /production/i,
+      /monitoring/i,
+      /analytics/i,
+      /ci\/cd|pipeline/i,
+      /docker\s+(setup|config|environment)/i,
+      /serverless/i,
+      /cloudformation/i,
+      /environment\s+(config|setup|variable)/i,
+      /\.env/i
     ];
     
-    // Frontend indicators (React, UI, Page, Component)
-    const frontendIndicators = [
-      'react', 'next.js', 'component', 'page.tsx', '.tsx', 'ui', 
-      'interface', 'dashboard ui', 'booking ui', 'payment ui',
-      'registration ui', 'apps/web', 'web/app', 'frontend',
-      'form.tsx', 'modal.tsx', 'shadcn', 'tailwind'
+    for (const pattern of infraPriorityPatterns) {
+      if (pattern.test(stepName)) {
+        return 'infra';
+      }
+    }
+    
+    // DATABASE priority patterns
+    const dbPriorityPatterns = [
+      /architecture\s+(base\s+de\s+données|database)/i,
+      /database\s+(setup|schema|design)/i,
+      /prisma\s+(setup|schema|init)/i,
+      /schema\s+(design|definition)/i,
+      /migration/i
     ];
     
-    // Infra indicators
-    const infraIndicators = [
-      'docker', 'terraform', 'aws', 'ci/cd', 'pipeline', 'deploy',
-      'kubernetes', 'monitoring', 'alerting', 'performance optimization',
-      'security audit', 'infrastructure'
+    for (const pattern of dbPriorityPatterns) {
+      if (pattern.test(stepName)) {
+        return 'database';
+      }
+    }
+    
+    // AUTH priority patterns
+    const authPriorityPatterns = [
+      /authentification/i,
+      /authentication/i,
+      /auth\s+(de\s+)?base/i,
+      /jwt\s+(setup|impl)/i,
+      /login\s+system/i
     ];
     
-    // Auth indicators
-    const authIndicators = [
-      'auth module', 'authentication', 'jwt', 'passport', 'login',
-      'middleware', 'protected routes', 'guard'
+    for (const pattern of authPriorityPatterns) {
+      if (pattern.test(stepName)) {
+        return 'auth';
+      }
+    }
+    
+    // TESTING priority patterns
+    const testPriorityPatterns = [
+      /tests?\s+(et\s+)?qa/i,
+      /e2e\s+test/i,
+      /unit\s+test/i,
+      /integration\s+test/i,
+      /quality\s+assurance/i
     ];
     
-    // Database indicators
-    const databaseIndicators = [
-      'database', 'prisma', 'migration', 'schema.prisma', 'seed',
-      'postgresql', 'mongodb', 'redis'
-    ];
+    for (const pattern of testPriorityPatterns) {
+      if (pattern.test(stepName)) {
+        return 'testing';
+      }
+    }
     
-    // Testing indicators
-    const testingIndicators = [
-      'test', 'e2e', 'cypress', 'playwright', 'jest', 'spec.ts'
-    ];
-    
-    // Count matches for each category
-    const scores = {
-      backend: backendIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
-      frontend: frontendIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
-      infra: infraIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
-      auth: authIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
-      database: databaseIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length,
-      testing: testingIndicators.filter(i => lowerContent.includes(i) || stepName.includes(i)).length
+    // Keyword-based scoring with improved indicators
+    const keywords = {
+      infra: {
+        high: ['infrastructure', 'aws', 'terraform', 'ci/cd', 'pipeline', 'déploiement',
+               'deploy', 'production', 'monitoring', 'analytics', 'docker', 'kubernetes',
+               'serverless', 'cloudformation', '.env', 'environment', 'devops',
+               'configuration du projet', 'project setup', 'initialiser le projet'],
+        medium: ['cloud', 'heroku', 'vercel', 'netlify', 'github actions'],
+        low: ['config', 'setup']
+      },
+      database: {
+        high: ['base de données', 'database', 'prisma', 'schema.prisma', 'migration',
+               'postgresql', 'mysql', 'mongodb', 'redis', 'rds', 'sql'],
+        medium: ['data model', 'entity', 'table', 'relation'],
+        low: ['db', 'storage']
+      },
+      auth: {
+        high: ['authentification', 'authentication', 'jwt', 'passport', 'oauth',
+               'login', 'register', 'bcrypt', 'session', 'token'],
+        medium: ['auth', 'guard', 'middleware auth', 'protected'],
+        low: ['permission', 'role', 'access']
+      },
+      backend: {
+        high: ['nestjs', 'express', 'fastify', 'controller', 'service',
+               '.service.ts', '.controller.ts', 'gateway', 'api route',
+               'matching', 'stripe', 'webhook', 'websocket', 'socket.io'],
+        medium: ['api', 'endpoint', 'route', 'server', 'module.ts'],
+        low: ['backend', 'server-side']
+      },
+      frontend: {
+        high: ['interface passager', 'interface chauffeur', 'dashboard', 'ui',
+               'react', 'next.js', 'vue', 'angular', 'component', 'page.tsx',
+               'géolocalisation', 'booking', 'reservation', 'maps', 'form'],
+        medium: ['frontend', 'client', 'web app', 'spa', 'composant'],
+        low: ['tailwind', 'css', 'style', 'design']
+      },
+      testing: {
+        high: ['tests et qa', 'e2e', 'cypress', 'playwright', 'jest', 'vitest',
+               'unit test', 'integration test', 'quality assurance'],
+        medium: ['test', 'spec.ts', 'spec.js', 'testing'],
+        low: ['coverage', 'assert']
+      },
+      api: {
+        high: ['rest api', 'graphql', 'api endpoint', 'swagger', 'openapi'],
+        medium: ['api', 'endpoint'],
+        low: []
+      },
+      mobile: {
+        high: ['react native', 'flutter', 'expo', 'ios', 'android', 'mobile app'],
+        medium: ['mobile', 'app store', 'play store'],
+        low: []
+      }
     };
     
-    // Special case: if step mentions both backend and frontend explicitly
-    if (lowerContent.includes('backend') && lowerContent.includes('frontend')) {
-      // Check which is more dominant
-      if (stepName.includes('ui') || stepName.includes('frontend')) {
-        return 'frontend';
+    // Calculate scores
+    const scores = {};
+    for (const [moduleKey, keywordGroups] of Object.entries(keywords)) {
+      let score = 0;
+      score += (keywordGroups.high || []).filter(kw => combinedText.includes(kw)).length * 3;
+      score += (keywordGroups.medium || []).filter(kw => combinedText.includes(kw)).length * 2;
+      score += (keywordGroups.low || []).filter(kw => combinedText.includes(kw)).length * 1;
+      scores[moduleKey] = score;
+    }
+    
+    // Disambiguation rules
+    // Rule 1: If both frontend and backend match, check step name
+    if (scores.frontend > 0 && scores.backend > 0) {
+      if (stepName.includes('interface') || stepName.includes('ui') || stepName.includes('dashboard')) {
+        scores.frontend += 5;
       }
-      if (stepName.includes('backend') || stepName.includes('module')) {
-        return 'backend';
+      if (stepName.includes('api') || stepName.includes('service') || stepName.includes('module')) {
+        scores.backend += 5;
+      }
+    }
+    
+    // Rule 2: Temps réel / WebSocket -> backend (server-side)
+    if (combinedText.includes('temps réel') || combinedText.includes('websocket')) {
+      if (!stepName.includes('interface') && !stepName.includes('ui')) {
+        scores.backend += 3;
+      }
+    }
+    
+    // Rule 3: Stripe / Payment -> backend
+    if (combinedText.includes('stripe') || combinedText.includes('payment')) {
+      if (!stepName.includes('ui') && !stepName.includes('interface')) {
+        scores.backend += 3;
       }
     }
     
@@ -433,6 +584,11 @@ class PlanParser {
         bestScore = score;
         bestModule = module;
       }
+    }
+    
+    // Default to infra if no good match (setup steps)
+    if (bestScore === 0 && stepName.includes('setup')) {
+      return 'infra';
     }
     
     return bestModule;

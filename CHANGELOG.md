@@ -5,6 +5,30 @@ Toutes les modifications notables de ce projet seront documentées ici.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet respecte le [Versioning Sémantique](https://semver.org/lang/fr/).
 
+## [1.7.0] - 2024-12-04
+
+### Ajouté
+- 🎯 **Ordre recommandé des modules** dans `master-code-run.md`
+  - Guide clair : Database → Auth → Backend → API → Frontend → Testing → Infra
+  - Indications sur quels modules peuvent être parallélisés
+- 🔧 **Support multi-modules** amélioré
+  - Parser corrigé pour `"Module: Backend, API"` → assigne aux deux modules
+  - Normalisation des noms de modules (Infrastructure → infra, etc.)
+
+### Corrigé
+- 🐛 **Module API vide** : Les étapes avec `Module: Backend, API` sont maintenant correctement assignées au module API
+- 🐛 **Duplications milestones** : Chaque étape n'apparaît qu'une seule fois dans les milestones
+- 🐛 **Modules vides créés** : Les modules sans étapes (API, Mobile) ne sont plus créés inutilement
+- 📝 **Instructions modules enrichies** : Même niveau de détail que les instructions globales
+
+### Changé
+- 🚀 **Mode complex automatique** : `--complex` active automatiquement TOUS les modules
+  - Plus de sélection interactive des modules
+  - L'IA structure le plan selon les besoins du projet
+  - L'utilisateur révise les fichiers avant `build`
+
+---
+
 ## [1.5.0] - 2024-12-03
 
 ### Ajouté

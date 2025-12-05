@@ -198,14 +198,47 @@ class MilestoneManager {
   }
 
   /**
+   * Remove duplicate steps across milestones
+   * Each step should only appear in ONE milestone (the first one)
+   */
+  deduplicateSteps() {
+    const seenSteps = new Set();
+    
+    for (const milestone of this.milestones) {
+      // Filter out steps already assigned to previous milestones
+      milestone.steps = milestone.steps.filter(stepNum => {
+        if (seenSteps.has(stepNum)) {
+          return false;
+        }
+        seenSteps.add(stepNum);
+        return true;
+      });
+      
+      // Update stepDetails too
+      milestone.stepDetails = milestone.stepDetails.filter(step => 
+        milestone.steps.includes(step.number)
+      );
+      
+      // Recalculate estimated hours
+      milestone.estimatedHours = milestone.steps.length * 4;
+    }
+  }
+
+  /**
    * Generate milestone summary for code-run.md
    * @returns {string} Markdown content
    */
   toMarkdown() {
+    // Remove duplicates before generating
+    this.deduplicateSteps();
+    
     const lines = [];
     lines.push('## 🏁 MILESTONES\n');
 
     for (const milestone of this.milestones) {
+      // Skip empty milestones
+      if (milestone.steps.length === 0) continue;
+      
       const statusIcon = milestone.status === 'completed' ? '✅' : 
                         milestone.status === 'in_progress' ? '🟡' : '⏳';
       

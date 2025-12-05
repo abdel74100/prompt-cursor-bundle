@@ -52,6 +52,11 @@ async function buildCommand(options) {
       }
     }
     
+    // In complex mode, automatically use ALL modules if none specified
+    if (complexMode && selectedModules.length === 0) {
+      selectedModules = Object.keys(ModuleManager.getModuleDefinitions());
+    }
+    
     console.log(chalk.gray(`Using ${provider.icon} ${provider.name} (${promptDir}/)`));
     if (complexMode) {
       console.log(chalk.blue(`📦 Complex mode enabled`));
