@@ -7,6 +7,294 @@ const DependencyGraph = require('./dependencyGraph');
 const MilestoneManager = require('./milestoneManager');
 const ModuleManager = require('./moduleManager');
 
+const MODULE_TEMPLATES = {
+	frontend: {
+		key: 'frontend',
+		contextFocus: 'Créer des écrans accessibles et responsives alignés sur le design system.',
+		defaultVerb: 'Implémenter',
+		defaultFiles: [
+			'src/app/{{slug}}/page.tsx',
+			'src/components/{{slug}}/{{slug}}.tsx',
+			'src/styles/{{slug}}.css'
+		],
+		defaultTodos: [
+			'Assembler les écrans {{objective}} avec les composants du design system',
+			'Gérer les états de chargement et erreurs côté client pour {{objective}}',
+			'Brancher les appels API requis pour {{objective}}'
+		],
+		defaultCommands: ['npm run lint', 'npm run test:ui', 'npm run dev -- --turbo'],
+		testExpectations: [
+			'Le rendu correspond aux maquettes sur desktop et mobile',
+			'Les interactions clavier/souris fonctionnent',
+			'Les appels API affichent les bons états'
+		],
+		validationChecklist: [
+			'Les composants critiques sont couverts par des tests',
+			'L’accessibilité de base (ARIA/tabs) est respectée',
+			'Les performances Lighthouse restent vertes'
+		],
+		testCommand: 'npm run test:ui'
+	},
+	backend: {
+		key: 'backend',
+		contextFocus: 'Exposer des endpoints stables avec gestion d’erreurs et sécurité.',
+		defaultVerb: 'Implémenter',
+		defaultFiles: [
+			'src/modules/{{slug}}/{{slug}}.controller.ts',
+			'src/modules/{{slug}}/{{slug}}.service.ts',
+			'src/modules/{{slug}}/{{slug}}.dto.ts'
+		],
+		defaultTodos: [
+			'Définir les DTO et schémas de validation pour {{objective}}',
+			'Implémenter {{slug}}Service avec la logique métier attendue',
+			'Exposer les routes REST /api/{{slug}} sécurisées par middleware'
+		],
+		defaultCommands: ['npm run lint', 'npm run test:unit', 'npm run start:dev'],
+		testExpectations: [
+			'Les endpoints renvoient 2xx avec payload correct',
+			'Les entrées invalides déclenchent une 4xx cohérente',
+			'Les règles métier rejettent les scénarios interdits'
+		],
+		validationChecklist: [
+			'Les endpoints critiques sont protégés (auth/roles)',
+			'Les logs et métriques couvrent le flux',
+			'La documentation API est mise à jour'
+		],
+		testCommand: 'npm run test:unit'
+	},
+	api: {
+		key: 'api',
+		contextFocus: 'Offrir des endpoints documentés (REST/GraphQL) prêts à consommer.',
+		defaultVerb: 'Documenter',
+		defaultFiles: [
+			'src/api/{{slug}}/route.ts',
+			'src/api/{{slug}}/schema.ts',
+			'src/api/{{slug}}/tests/{{slug}}.spec.ts'
+		],
+		defaultTodos: [
+			'Définir le contrat API (params + payload) pour {{objective}}',
+			'Implémenter les handlers REST/GraphQL pour {{slug}}',
+			'Documenter les endpoints dans OpenAPI/Swagger'
+		],
+		defaultCommands: ['npm run lint', 'npm run test:api', 'npm run start:dev'],
+		testExpectations: [
+			'Chaque route répond avec le status attendu',
+			'Les schémas de validation rejettent les données invalides',
+			'La documentation est synchronisée avec le code'
+		],
+		validationChecklist: [
+			'La spec OpenAPI est générée/partagée',
+			'Les limites de rate limiting sont configurées',
+			'Les erreurs sont normalisées (codes + payload)'
+		],
+		testCommand: 'npm run test:api'
+	},
+	auth: {
+		key: 'auth',
+		contextFocus: 'Sécuriser les parcours d’identification et la gestion des sessions.',
+		defaultVerb: 'Sécuriser',
+		defaultFiles: [
+			'src/auth/{{slug}}.strategy.ts',
+			'src/auth/{{slug}}.controller.ts',
+			'src/auth/guards/{{slug}}.guard.ts'
+		],
+		defaultTodos: [
+			'Configurer le flux d’authentification pour {{objective}}',
+			'Renforcer le stockage des secrets et variables',
+			'Couverturer les scénarios d\'expiration et de révocation'
+		],
+		defaultCommands: ['npm run lint', 'npm run test:auth', 'npm run start:dev'],
+		testExpectations: [
+			'Les identifiants invalides sont rejetés systématiquement',
+			'Les tokens expirés sont refusés',
+			'Les routes protégées ne sont pas accessibles en anonyme'
+		],
+		validationChecklist: [
+			'Les secrets sont chargés via le coffre prévu',
+			'Les logs n’exposent aucune donnée sensible',
+			'Les parcours multi-facteurs sont documentés'
+		],
+		testCommand: 'npm run test:auth'
+	},
+	infra: {
+		key: 'infra',
+		contextFocus: 'Automatiser l’infrastructure, le déploiement et les observabilités.',
+		defaultVerb: 'Configurer',
+		defaultFiles: [
+			'infra/{{slug}}/main.tf',
+			'.github/workflows/{{slug}}.yml',
+			'ops/{{slug}}.md'
+		],
+		defaultTodos: [
+			'Décrire l’architecture cible {{objective}} dans IaC',
+			'Mettre en place la pipeline CI/CD pour {{slug}}',
+			'Configurer les tableaux de bord/alertes pour {{objective}}'
+		],
+		defaultCommands: ['npx terraform fmt', 'npx terraform plan', 'npm run deploy:dev'],
+		testExpectations: [
+			'Les plans IaC sont idempotents',
+			'La pipeline passe sans intervention manuelle',
+			'Les alertes déclenchent les bonnes notifications'
+		],
+		validationChecklist: [
+			'Les environnements sont reproductibles',
+			'Les secrets sont injectés via le coffre',
+			'Les coûts estimés sont conformes aux limites'
+		],
+		testCommand: 'npm run deploy:dev'
+	},
+	database: {
+		key: 'database',
+		contextFocus: 'Garantir un schéma fiable et des migrations traçables.',
+		defaultVerb: 'Modéliser',
+		defaultFiles: [
+			'prisma/{{slug}}.prisma',
+			'src/database/migrations/{{slug}}.sql',
+			'src/database/seeds/{{slug}}.ts'
+		],
+		defaultTodos: [
+			'Définir le modèle de données pour {{objective}}',
+			'Écrire les migrations et seeds cohérents',
+			'Valider les index/perfs pour {{objective}}'
+		],
+		defaultCommands: ['npx prisma migrate dev', 'npx prisma generate', 'npm run db:seed'],
+		testExpectations: [
+			'Les migrations appliquées sur une base vide fonctionnent',
+			'Les contraintes empêchent les incohérences',
+			'Les seeds chargent les données essentielles'
+		],
+		validationChecklist: [
+			'Le rollback des migrations est documenté',
+			'Les accès DB respectent le principe du moindre privilège',
+			'Les sauvegardes automatiques sont vérifiées'
+		],
+		testCommand: 'npm run test'
+	},
+	testing: {
+		key: 'testing',
+		contextFocus: 'Renforcer la couverture et les scénarios critiques.',
+		defaultVerb: 'Tester',
+		defaultFiles: [
+			'tests/{{slug}}.spec.ts',
+			'e2e/{{slug}}.e2e.ts',
+			'cypress/e2e/{{slug}}.cy.ts'
+		],
+		defaultTodos: [
+			'Cartographier les cas critiques pour {{objective}}',
+			'Automatiser les tests unitaires et e2e associés',
+			'Brancher les tests dans la CI existante'
+		],
+		defaultCommands: ['npm run test', 'npm run test:e2e', 'npm run lint'],
+		testExpectations: [
+			'Les tests couvrent les chemins heureux et erreurs',
+			'Les assertions protègent les régressions',
+			'Les scénarios e2e reflètent les parcours métiers'
+		],
+		validationChecklist: [
+			'La couverture reste supérieure au seuil cible',
+			'Les snapshots sont mis à jour et vérifiés',
+			'La CI échoue bien sur un test rouge'
+		],
+		testCommand: 'npm run test:e2e'
+	},
+	mobile: {
+		key: 'mobile',
+		contextFocus: 'Délivrer une expérience native fluide et conforme aux guidelines.',
+		defaultVerb: 'Construire',
+		defaultFiles: [
+			'mobile/src/screens/{{slug}}.tsx',
+			'mobile/src/components/{{slug}}.tsx',
+			'mobile/src/hooks/use{{pascal}}.ts'
+		],
+		defaultTodos: [
+			'Assembler les écrans mobile pour {{objective}}',
+			'Gérer l’état/offline et la navigation',
+			'Intégrer les SDK natifs nécessaires'
+		],
+		defaultCommands: ['npm run ios', 'npm run android', 'npm run test:mobile'],
+		testExpectations: [
+			'Les écrans respectent les guidelines iOS/Android',
+			'Les interactions sont fluides sur device physique',
+			'Les erreurs réseau sont gérées hors ligne'
+		],
+		validationChecklist: [
+			'Les builds iOS/Android compilent sans avertissement',
+			'Les permissions sensibles sont justifiées',
+			'Les performances répondent aux budgets FPS/mémoire'
+		],
+		testCommand: 'npm run test:mobile'
+	},
+	generic: {
+		key: 'generic',
+		contextFocus: 'Livrer la valeur métier attendue sans dette technique.',
+		defaultVerb: 'Compléter',
+		defaultFiles: [
+			'src/{{slug}}/index.ts',
+			'docs/decisions/{{slug}}.md'
+		],
+		defaultTodos: [
+			'Clarifier les hypothèses fonctionnelles de {{objective}}',
+			'Produire une implémentation testable et documentée',
+			'Aligner les critères de validation avec l’équipe produit'
+		],
+		defaultCommands: ['npm run lint', 'npm test', 'npm run build'],
+		testExpectations: [
+			'Les scénarios utilisateur clés fonctionnent',
+			'Les erreurs sont loguées de façon exploitable',
+			'La couverture minimale reste atteinte'
+		],
+		validationChecklist: [
+			'Les parties prenantes valident le comportement',
+			'Les métriques clés restent dans le vert',
+			'La documentation est partagée'
+		],
+		testCommand: 'npm test'
+	}
+};
+
+const STACK_KEYWORDS = {
+	frontend: ['react', 'next', 'vue', 'tailwind', 'ui', 'component', 'svelte'],
+	backend: ['node', 'nestjs', 'express', 'fastify', 'service', 'api'],
+	auth: ['auth', 'jwt', 'oauth', 'passport', 'securité', 'security'],
+	infra: ['aws', 'gcp', 'azure', 'terraform', 'docker', 'kubernetes'],
+	database: ['postgres', 'mysql', 'mongodb', 'prisma', 'sql', 'redis'],
+	testing: ['jest', 'cypress', 'playwright', 'vitest', 'tests'],
+	mobile: ['react native', 'flutter', 'swift', 'kotlin', 'expo']
+};
+
+const ACTION_VERBS = ['Configurer', 'Implémenter', 'Construire', 'Tester', 'Documenter', 'Sécuriser', 'Optimiser', 'Superviser', 'Décrire', 'Déployer', 'Mettre', 'Créer', 'Valider'];
+
+function slugify(value = '') {
+	return value
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '') || 'etape';
+}
+
+function pascalCase(value = '') {
+	return value
+		.replace(/[\s_-]+/g, ' ')
+		.split(' ')
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+		.join('') || 'Step';
+}
+
+function applyTokens(text, tokens) {
+	if (!text) return '';
+	return Object.entries(tokens).reduce((acc, [key, val]) => {
+		const value = Array.isArray(val) ? val.join(', ') : val || '';
+		const regex = new RegExp(`{{${key}}}`, 'g');
+		return acc.replace(regex, value);
+	}, text);
+}
+
+function uniqueList(list = []) {
+	return [...new Set(list.filter(Boolean))];
+}
+
 /**
  * Generate code-run.md and Instructions directory with step files
  * Supports both simple and complex project modes
@@ -21,6 +309,7 @@ class CodeRunGenerator {
 		this.aiProvider = options.aiProvider || DEFAULT_PROVIDER;
 		this.promptDir = getPromptDirectory(this.aiProvider);
 		this.dirs = getDirs(this.aiProvider);
+		this.projectContext = options.projectContext || {};
 		
 		// Complex mode options
 		this.complexMode = options.complexMode || false;
@@ -312,176 +601,29 @@ class CodeRunGenerator {
 	 * Includes files to create, commands to run, and detailed TODOs
 	 */
 	generateRichInstructionContent(step, stepNumber, index) {
+		const moduleInfo = this.resolveModuleTemplate(step);
+		const slug = slugify(step.name || `step-${stepNumber}`);
+		const tokens = this.buildTokenMap(step, moduleInfo, slug, stepNumber);
 		const lines = [];
 		
-		// Header
 		lines.push(`# Instructions - Étape ${stepNumber} : ${step.name}`);
 		lines.push('');
 		
-		// Overview section
-		lines.push('## 📋 Vue d\'ensemble');
-		lines.push('');
+		lines.push(...this.buildCoreSections({
+			step,
+			stepNumber,
+			moduleInfo,
+			moduleMeta: null,
+			slug,
+			tokens,
+			testPath: `tests/step${stepNumber}_test.${this.fileExtension}`
+		}));
 		
-		// Module info
-		const moduleDisplay = Array.isArray(step.module) ? step.module.join(', ') : (step.module || 'Non défini');
-		lines.push(`**Module:** ${moduleDisplay}`);
-		
-		// Estimated time
-		const estimatedTime = step.techDetails?.estimatedTime || step.estimatedTime || '2-4 heures';
-		lines.push(`**Estimation:** ${estimatedTime}`);
-		
-		// Dependencies
-		let dependenciesText = 'Aucune';
-		if (stepNumber > 1) {
-			if (step.dependsOn && step.dependsOn.length > 0) {
-				dependenciesText = step.dependsOn.map(d => `Étape ${d}`).join(', ') + ' complétée(s)';
-			} else {
-				dependenciesText = `Étape ${stepNumber - 1} complétée`;
-			}
-		}
-		lines.push(`**Dépendances:** ${dependenciesText}`);
-		
-		// Objective
-		if (step.objective && step.objective !== step.name) {
-			lines.push('');
-			lines.push(`**Objectif:** ${step.objective}`);
-		}
-		
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Files to create section
-		if (step.files && step.files.length > 0) {
-			lines.push('## 📁 Fichiers à créer');
-			lines.push('');
-			for (const file of step.files) {
-				lines.push(`- \`${file}\``);
-			}
-			lines.push('');
-			lines.push('---');
-			lines.push('');
-		}
-		
-		// Commands to run section
-		if (step.userCommands && step.userCommands.length > 0) {
-			lines.push('## 💻 Commandes à exécuter');
-			lines.push('');
-			lines.push('```bash');
-			for (const cmd of step.userCommands) {
-				lines.push(cmd);
-			}
-			lines.push('```');
-			lines.push('');
-			lines.push('---');
-			lines.push('');
-		}
-		
-		// TODO List section
-		lines.push('## ✅ TODO Liste');
-		lines.push('');
-		
-		if (Array.isArray(step.tasks) && step.tasks.length > 0) {
-			let taskIndex = 1;
-			for (const task of step.tasks) {
-				if (task.type === 'main') {
-					lines.push(`- [ ] **${taskIndex}. ${task.description}**`);
-				} else if (task.type === 'file') {
-					lines.push(`- [ ] ${taskIndex}. Créer \`${task.file}\``);
-				} else if (task.type === 'files') {
-					lines.push(`- [ ] ${taskIndex}. ${task.description}`);
-					if (task.files) {
-						for (const f of task.files.slice(0, 5)) {
-							lines.push(`  - \`${f}\``);
-						}
-						if (task.files.length > 5) {
-							lines.push(`  - ... et ${task.files.length - 5} autres fichiers`);
-						}
-					}
-				} else if (task.type === 'commands') {
-					lines.push(`- [ ] ${taskIndex}. Exécuter les commandes d'installation`);
-					if (task.commands) {
-						for (const c of task.commands.slice(0, 3)) {
-							lines.push(`  - \`${c}\``);
-						}
-					}
-				} else if (task.type === 'validation') {
-					lines.push(`- [ ] ${taskIndex}. ✅ Validation finale (build + runtime)`);
-				} else {
-					lines.push(`- [ ] ${taskIndex}. ${task.description}`);
-				}
-				taskIndex++;
-			}
-		} else {
-			lines.push('- [ ] 1. Implémenter les fonctionnalités de cette étape');
-			lines.push('- [ ] 2. Vérifier que le code compile');
-			lines.push('- [ ] 3. Tester manuellement');
-			lines.push('- [ ] 4. Écrire les tests automatisés');
-		}
-		
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Tech Stack hints
-		if (step.techDetails?.techStack && step.techDetails.techStack.length > 0) {
-			lines.push('## 🛠️ Technologies utilisées');
-			lines.push('');
-			lines.push(step.techDetails.techStack.map(t => `\`${t}\``).join(' • '));
-			lines.push('');
-			lines.push('---');
-			lines.push('');
-		}
-		
-		// Tests section
-		lines.push('## 🧪 Tests requis');
-		lines.push('');
-		lines.push(`**Fichier:** \`tests/step${stepNumber}_test.${this.fileExtension}\``);
-		lines.push('');
-		lines.push('**Tests à implémenter:**');
-		lines.push('');
-		
-		if (Array.isArray(step.tasks) && step.tasks.length > 0) {
-			const testableTasks = step.tasks.filter(t => t.type !== 'validation' && t.type !== 'commands');
-			for (let i = 0; i < Math.min(testableTasks.length, 5); i++) {
-				const task = testableTasks[i];
-				const testCriteria = this.generateTestCriteria(task.description);
-				lines.push(`${i + 1}. **${task.description.substring(0, 50)}${task.description.length > 50 ? '...' : ''}**`);
-				lines.push(`   - Vérifie que: ${testCriteria}`);
-				lines.push('');
-			}
-		} else {
-			lines.push('1. **Test de base**');
-			lines.push('   - Vérifie que: L\'étape est correctement implémentée');
-		}
-		
-		lines.push('');
-		lines.push('**Commande:**');
-		lines.push('```bash');
-		lines.push('npm test');
-		lines.push('```');
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Validation criteria
-		lines.push('## 🔍 Critères de validation');
-		lines.push('');
-		lines.push('- [ ] Tous les TODOs ci-dessus complétés');
-		lines.push(`- [ ] Tests step${stepNumber}_test passent à 100%`);
-		lines.push('- [ ] Build s\'exécute sans erreur');
-		lines.push('- [ ] Application démarre correctement');
-		lines.push('- [ ] Aucune régression sur les étapes précédentes');
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Next step
 		lines.push('## 🔄 Prochaine étape');
 		lines.push('');
 		const nextStep = this.steps[index + 1];
 		if (nextStep) {
-			lines.push(`Une fois cette étape validée, passez à:`);
+			lines.push('Une fois cette étape validée, passez à:');
 			lines.push(`**Étape ${nextStep.number || (index + 2)}: ${nextStep.name}**`);
 		} else {
 			lines.push('🎉 **C\'est la dernière étape du projet !**');
@@ -688,194 +830,37 @@ class CodeRunGenerator {
 
 	/**
 	 * Generate instruction content for a module step
-	 * Enhanced V2: Rich instructions matching global format
+	 * Enhanced with template-based sections
 	 */
 	generateModuleInstructionContent(step, localStepNum, module) {
+		const moduleInfo = MODULE_TEMPLATES[module.key] || this.resolveModuleTemplate(step);
+		const slug = slugify(step.name || `step-${localStepNum}`);
+		const tokens = this.buildTokenMap(step, moduleInfo, slug, localStepNum);
 		const lines = [];
 		
-		// Header
 		lines.push(`# ${module.icon} ${module.name} - Instructions Étape ${localStepNum}`);
 		lines.push('');
-		
-		// Overview section
-		lines.push('## 📋 Vue d\'ensemble');
-		lines.push('');
-		lines.push(`**Module:** ${module.name}`);
 		lines.push(`**Global Step:** ${step.number}`);
-		
-		// Estimated time
-		const estimatedTime = step.techDetails?.estimatedTime || step.estimatedTime || '2-4 heures';
-		lines.push(`**Estimation:** ${estimatedTime}`);
-		
-		// Dependencies
-		let dependenciesText = 'Aucune';
-		if (localStepNum > 1) {
-			if (step.dependsOn && step.dependsOn.length > 0) {
-				// Map global deps to local context
-				const localDeps = step.dependsOn.filter(d => 
-					module.steps.some(s => s.number === d)
-				);
-				if (localDeps.length > 0) {
-					dependenciesText = localDeps.map(d => `Étape globale ${d}`).join(', ') + ' complétée(s)';
-				} else {
-					dependenciesText = `Étape ${localStepNum - 1} du module complétée`;
-				}
-			} else {
-				dependenciesText = `Étape ${localStepNum - 1} du module complétée`;
-			}
-		}
-		lines.push(`**Dépendances:** ${dependenciesText}`);
-		
-		// Objective
-		if (step.objective && step.objective !== step.name) {
-			lines.push('');
-			lines.push(`**Objectif:** ${step.objective}`);
-		}
-		
-		lines.push('');
-		lines.push('---');
+		lines.push(`**Module:** ${module.name}`);
 		lines.push('');
 		
-		// Files to create section
-		if (step.files && step.files.length > 0) {
-			lines.push('## 📁 Fichiers à créer');
-			lines.push('');
-			for (const file of step.files) {
-				lines.push(`- \`${file}\``);
-			}
-			lines.push('');
-			lines.push('---');
-			lines.push('');
-		}
+		lines.push(...this.buildCoreSections({
+			step,
+			stepNumber: localStepNum,
+			moduleInfo,
+			moduleMeta: module,
+			slug,
+			tokens,
+			testPath: `tests/${module.key}/step${localStepNum}_test.${this.fileExtension}`
+		}));
 		
-		// Commands to run section
-		if (step.userCommands && step.userCommands.length > 0) {
-			lines.push('## 💻 Commandes à exécuter');
-			lines.push('');
-			lines.push('```bash');
-			for (const cmd of step.userCommands) {
-				lines.push(cmd);
-			}
-			lines.push('```');
-			lines.push('');
-			lines.push('---');
-			lines.push('');
-		}
-		
-		// TODO List section - enhanced
-		lines.push('## ✅ TODO Liste');
-		lines.push('');
-		
-		if (Array.isArray(step.tasks) && step.tasks.length > 0) {
-			let taskIndex = 1;
-			for (const task of step.tasks) {
-				if (task.type === 'main') {
-					lines.push(`- [ ] **${taskIndex}. ${task.description}**`);
-				} else if (task.type === 'file') {
-					lines.push(`- [ ] ${taskIndex}. Créer \`${task.file}\``);
-				} else if (task.type === 'files') {
-					lines.push(`- [ ] ${taskIndex}. ${task.description}`);
-					if (task.files) {
-						for (const f of task.files.slice(0, 5)) {
-							lines.push(`  - \`${f}\``);
-						}
-						if (task.files.length > 5) {
-							lines.push(`  - ... et ${task.files.length - 5} autres fichiers`);
-						}
-					}
-				} else if (task.type === 'commands') {
-					lines.push(`- [ ] ${taskIndex}. Exécuter les commandes`);
-					if (task.commands) {
-						for (const c of task.commands.slice(0, 3)) {
-							lines.push(`  - \`${c}\``);
-						}
-					}
-				} else if (task.type === 'validation') {
-					lines.push(`- [ ] ${taskIndex}. ✅ Validation (build + runtime)`);
-				} else {
-					lines.push(`- [ ] ${taskIndex}. ${task.description}`);
-				}
-				taskIndex++;
-			}
-		} else {
-			// Fallback: use files to create as tasks
-			if (step.files && step.files.length > 0) {
-				lines.push(`- [ ] **1. ${step.objective || step.name}**`);
-				let taskIdx = 2;
-				for (const file of step.files.slice(0, 6)) {
-					lines.push(`- [ ] ${taskIdx}. Créer \`${file}\``);
-					taskIdx++;
-				}
-				if (step.userCommands && step.userCommands.length > 0) {
-					lines.push(`- [ ] ${taskIdx}. Exécuter les commandes d'installation`);
-					for (const cmd of step.userCommands.slice(0, 3)) {
-						lines.push(`  - \`${cmd}\``);
-					}
-					taskIdx++;
-				}
-				lines.push(`- [ ] ${taskIdx}. ✅ Validation finale (build + runtime)`);
-			} else {
-				lines.push(`- [ ] **1. ${step.objective || step.name}**`);
-				lines.push('- [ ] 2. Implémenter les fonctionnalités');
-				lines.push('- [ ] 3. ✅ Validation finale (build + runtime)');
-			}
-		}
-		
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Tests section
-		lines.push('## 🧪 Tests requis');
-		lines.push('');
-		lines.push(`**Fichier:** \`tests/${module.key}/step${localStepNum}_test.${this.fileExtension}\``);
-		lines.push('');
-		lines.push('**Tests à implémenter:**');
-		lines.push('');
-		
-		if (Array.isArray(step.tasks) && step.tasks.length > 0) {
-			const testableTasks = step.tasks.filter(t => t.type !== 'validation' && t.type !== 'commands');
-			for (let i = 0; i < Math.min(testableTasks.length, 5); i++) {
-				const task = testableTasks[i];
-				const testCriteria = this.generateTestCriteria(task.description);
-				lines.push(`${i + 1}. **${task.description.substring(0, 50)}${task.description.length > 50 ? '...' : ''}**`);
-				lines.push(`   - Vérifie que: ${testCriteria}`);
-				lines.push('');
-			}
-		} else {
-			lines.push(`1. **${step.name.substring(0, 50)}${step.name.length > 50 ? '...' : ''}**`);
-			lines.push(`   - Vérifie que: L'implémentation est complète`);
-		}
-		
-		lines.push('');
-		lines.push('**Commande:**');
-		lines.push('```bash');
-		lines.push('npm test');
-		lines.push('```');
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Validation criteria
-		lines.push('## 🔍 Critères de validation');
-		lines.push('');
-		lines.push('- [ ] Tous les TODOs ci-dessus complétés');
-		lines.push(`- [ ] Tests passent à 100%`);
-		lines.push('- [ ] Build s\'exécute sans erreur');
-		lines.push('- [ ] Application démarre correctement');
-		lines.push('- [ ] Aucune régression');
-		lines.push('');
-		lines.push('---');
-		lines.push('');
-		
-		// Next step
 		lines.push('## 🔄 Prochaine étape');
 		lines.push('');
-		const nextStepIndex = module.steps.findIndex(s => s.number === step.number) + 1;
-		const nextStep = module.steps[nextStepIndex];
+		const currentIndex = module.steps.findIndex((s) => s.number === step.number);
+		const nextStep = currentIndex >= 0 ? module.steps[currentIndex + 1] : null;
 		if (nextStep) {
-			lines.push(`Une fois cette étape validée, passez à:`);
-			lines.push(`**Étape ${nextStepIndex + 1}: ${nextStep.name}**`);
+			lines.push('Une fois cette étape validée, passez à:');
+			lines.push(`**Étape ${currentIndex + 2}: ${nextStep.name}**`);
 		} else {
 			lines.push(`🎉 **C'est la dernière étape du module ${module.name} !**`);
 			lines.push('');
@@ -884,6 +869,291 @@ class CodeRunGenerator {
 		lines.push('');
 		
 		return lines.join('\n');
+	}
+
+	resolveModuleTemplate(step) {
+		const moduleKeys = Array.isArray(step.module)
+			? step.module
+			: step.module
+				? [step.module]
+				: [];
+		for (const key of moduleKeys) {
+			if (MODULE_TEMPLATES[key]) {
+				return MODULE_TEMPLATES[key];
+			}
+		}
+		return MODULE_TEMPLATES.generic;
+	}
+
+	buildTokenMap(step, moduleInfo, slug, stepNumber) {
+		return {
+			slug,
+			pascal: pascalCase(step.name || slug),
+			objective: step.objective || step.name || `Étape ${stepNumber}`,
+			module: moduleInfo.key,
+			moduleName: Array.isArray(step.module) ? step.module.join(', ') : step.module || moduleInfo.key,
+			stepNumber: step.number || stepNumber
+		};
+	}
+
+		buildCoreSections({ step, stepNumber, moduleInfo, moduleMeta, slug, tokens, testPath }) {
+		const sections = [];
+			sections.push(...this.buildContextSection({ step, stepNumber, moduleInfo, moduleMeta, tokens }));
+		sections.push(...this.buildFilesSection({ step, moduleInfo, moduleMeta, tokens }));
+		sections.push(...this.buildCommandsSection({ step, moduleInfo }));
+		sections.push(...this.buildTodoSection({ step, moduleInfo, tokens }));
+		sections.push(...this.buildTestsSection({ step, moduleInfo, tokens, testPath }));
+		sections.push(...this.buildValidationSection({ moduleInfo, tokens, testPath }));
+		return sections;
+	}
+
+	buildContextSection({ step, stepNumber, moduleInfo, moduleMeta, tokens }) {
+		const lines = [];
+		const moduleLabel = moduleMeta?.name || tokens.moduleName || 'Non défini';
+		const mission = this.projectContext.summary || `Livrer ${this.projectName}`;
+		const objectives = (this.projectContext.keyObjectives || []).slice(0, 2);
+		const deps = this.describeDependencies(step, stepNumber);
+		const highlight = this.findPlanHighlight(step);
+		const stack = this.getStackForModule(moduleInfo.key);
+		const estimation = step.techDetails?.estimatedTime || step.estimatedTime || '2-4 heures';
+		
+		lines.push('## 📋 Contexte');
+		lines.push('');
+		lines.push(`- **Module:** ${moduleLabel}`);
+		lines.push(`- **Focus:** ${moduleInfo.contextFocus}`);
+		lines.push(`- **Objectif step:** ${tokens.objective}`);
+		lines.push(`- **Estimation:** ${estimation}`);
+		lines.push(`- **Dépendances:** ${deps}`);
+		lines.push(`- **Mission produit:** ${mission}`);
+		if (objectives.length > 0) {
+			lines.push(`- **Objectifs liés:** ${objectives.join(' • ')}`);
+		}
+		if (highlight) {
+			lines.push(`- **Lien plan:** ${highlight}`);
+		}
+		if (stack.length > 0) {
+			lines.push(`- **Stack pressentie:** ${stack.join(', ')}`);
+		}
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		return lines;
+	}
+
+	buildFilesSection({ step, moduleInfo, moduleMeta, tokens }) {
+		const lines = [];
+		const files = this.collectFileTargets(step, moduleInfo, moduleMeta, tokens);
+		lines.push('## 📁 Fichiers cibles');
+		lines.push('');
+		files.forEach((file) => lines.push(`- \`${file}\``));
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		return lines;
+	}
+
+	buildCommandsSection({ step, moduleInfo }) {
+		const lines = [];
+		const commands = this.collectCommands(step, moduleInfo);
+		lines.push('## 💻 Commandes à exécuter');
+		lines.push('');
+		lines.push('```bash');
+		commands.forEach((cmd) => lines.push(cmd));
+		lines.push('```');
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		return lines;
+	}
+
+	buildTodoSection({ step, moduleInfo, tokens }) {
+		const lines = [];
+		const todos = this.collectTodos(step, moduleInfo, tokens);
+		lines.push('## ✅ TODO Liste');
+		lines.push('');
+		todos.forEach((todo, idx) => {
+			lines.push(`- [ ] ${idx + 1}. ${todo}`);
+		});
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		return lines;
+	}
+
+	buildTestsSection({ step, moduleInfo, tokens, testPath }) {
+		const lines = [];
+		const expectations = this.collectTestExpectations(step, moduleInfo, tokens);
+		lines.push('## 🧪 Tests requis');
+		lines.push('');
+		lines.push(`**Fichier:** \`${testPath}\``);
+		lines.push('');
+		lines.push('**Tests à implémenter:**');
+		lines.push('');
+		if (expectations.length > 0) {
+			expectations.forEach((item, index) => {
+				lines.push(`${index + 1}. **${item.title.substring(0, 80)}**`);
+				lines.push(`   - Vérifie que: ${item.criteria}`);
+				lines.push('');
+			});
+		} else {
+			lines.push('1. **Couverture minimale**');
+			lines.push(`   - Vérifie que: ${moduleInfo.testExpectations?.[0] || 'La fonctionnalité répond aux critères métier'}`);
+			lines.push('');
+		}
+		lines.push('**Commande:**');
+		lines.push('```bash');
+		lines.push(moduleInfo.testCommand || 'npm test');
+		lines.push('```');
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		return lines;
+	}
+
+	buildValidationSection({ moduleInfo, tokens, testPath }) {
+		const lines = [];
+		const checklist = [
+			'Tous les TODOs ci-dessus complétés',
+			`Tests \`${testPath}\` verts`,
+			'Build s\'exécute sans erreur',
+			'Application démarre correctement',
+			'Aucune régression fonctionnelle'
+		];
+		(moduleInfo.validationChecklist || []).forEach((item) => {
+			checklist.unshift(applyTokens(item, tokens));
+		});
+		lines.push('## 🔍 Critères de validation');
+		lines.push('');
+		uniqueList(checklist).forEach((item) => lines.push(`- [ ] ${item}`));
+		lines.push('');
+		lines.push('---');
+		lines.push('');
+		return lines;
+	}
+
+	describeDependencies(step, stepNumber) {
+		if (step.dependsOn && step.dependsOn.length > 0) {
+			return step.dependsOn.map((d) => `Étape ${d}`).join(', ');
+		}
+		if (stepNumber === 1) {
+			return 'Aucune';
+		}
+		return `Étape ${stepNumber - 1} validée + tests OK`;
+	}
+
+	findPlanHighlight(step) {
+		const highlights = this.projectContext.planHighlights || [];
+		if (!highlights.length) return null;
+		const lowerName = (step.name || '').toLowerCase();
+		const exact = highlights.find((item) => item.toLowerCase().includes(lowerName));
+		return exact || highlights[0];
+	}
+
+	getStackForModule(moduleKey) {
+		const stack = this.projectContext.techStack || [];
+		if (!stack.length) return [];
+		const keywords = STACK_KEYWORDS[moduleKey] || [];
+		if (!keywords.length) {
+			return stack.slice(0, 3);
+		}
+		const matches = stack.filter((item) => keywords.some((kw) => item.toLowerCase().includes(kw)));
+		return (matches.length > 0 ? matches : stack).slice(0, 3);
+	}
+
+	collectFileTargets(step, moduleInfo, moduleMeta, tokens) {
+		const fromPlan = Array.isArray(step.files) ? step.files : [];
+		const templateFiles = (moduleInfo.defaultFiles || []).map((file) => applyTokens(file, tokens));
+		const moduleDirs = moduleMeta?.directories || [];
+		if (!templateFiles.length && moduleDirs.length > 0) {
+			templateFiles.push(`${moduleDirs[0]}/${tokens.slug || 'index.ts'}`);
+		}
+		const fallback = [`docs/decisions/${tokens.slug}.md`];
+		return uniqueList([...fromPlan, ...templateFiles, ...fallback]).slice(0, 8);
+	}
+
+	collectCommands(step, moduleInfo) {
+		const userCommands = Array.isArray(step.userCommands) ? step.userCommands.map((cmd) => cmd.trim()).filter(Boolean) : [];
+		const defaults = moduleInfo.defaultCommands || [];
+		return uniqueList([...userCommands, ...defaults]).slice(0, 5);
+	}
+
+	collectTodos(step, moduleInfo, tokens) {
+		const todos = [];
+		const tasks = Array.isArray(step.tasks) ? step.tasks : [];
+		for (const task of tasks) {
+			const description = this.renderTaskDescription(task, moduleInfo, tokens);
+			if (description) {
+				todos.push(description);
+			}
+			if (todos.length >= 6) {
+				break;
+			}
+		}
+		if (todos.length < 3 && moduleInfo.defaultTodos) {
+			moduleInfo.defaultTodos.forEach((templateTodo) => {
+				const text = applyTokens(templateTodo, tokens);
+				if (text) {
+					todos.push(this.ensureActionable(text, moduleInfo.defaultVerb));
+				}
+			});
+		}
+		while (todos.length < 3) {
+			todos.push(this.ensureActionable(`Compléter ${tokens.objective}`, moduleInfo.defaultVerb));
+		}
+		return todos.slice(0, 8);
+	}
+
+	renderTaskDescription(task, moduleInfo, tokens) {
+		if (!task) return null;
+		if (task.type === 'file' && task.file) {
+			return this.ensureActionable(`Créer \`${task.file}\``, 'Créer');
+		}
+		if (task.type === 'files' && task.description) {
+			return this.ensureActionable(applyTokens(task.description, tokens), moduleInfo.defaultVerb);
+		}
+		if (task.type === 'commands') {
+			return this.ensureActionable('Exécuter les commandes listées', 'Exécuter');
+		}
+		if (task.type === 'validation') {
+			return this.ensureActionable('Valider le build + runtime', 'Valider');
+		}
+		if (task.description) {
+			return this.ensureActionable(applyTokens(task.description, tokens), moduleInfo.defaultVerb);
+		}
+		if (task.details) {
+			return this.ensureActionable(applyTokens(task.details, tokens), moduleInfo.defaultVerb);
+		}
+		return null;
+	}
+
+	collectTestExpectations(step, moduleInfo, tokens) {
+		const expectations = [];
+		if (Array.isArray(step.tasks)) {
+			const testableTasks = step.tasks.filter((task) => task.description && task.type !== 'commands');
+			for (const task of testableTasks.slice(0, 4)) {
+				const title = this.ensureActionable(applyTokens(task.description, tokens), moduleInfo.defaultVerb);
+				const criteria = this.generateTestCriteria(task.description);
+				expectations.push({ title, criteria });
+			}
+		}
+		if (!expectations.length && moduleInfo.testExpectations) {
+			moduleInfo.testExpectations.forEach((item) => {
+				const text = applyTokens(item, tokens);
+				expectations.push({ title: text, criteria: text });
+			});
+		}
+		return expectations.slice(0, 5);
+	}
+
+	ensureActionable(text, fallbackVerb = 'Implémenter') {
+		if (!text) return '';
+		const cleaned = text.replace(/^\d+\.\s*/, '').replace(/^[-•]\s*/, '').trim();
+		const startsWithVerb = ACTION_VERBS.some((verb) => cleaned.toLowerCase().startsWith(verb.toLowerCase()));
+		if (startsWithVerb) {
+			return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+		}
+		const sentence = `${fallbackVerb} ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
+		return sentence;
 	}
 
 	/**
