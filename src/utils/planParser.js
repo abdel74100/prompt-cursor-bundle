@@ -82,7 +82,8 @@ class PlanParser {
     
     while ((match = frenchRegex.exec(content)) !== null) {
       const stepNumber = parseInt(match[1]);
-      const stepTitle = match[2].trim();
+      const rawTitle = match[2].trim();
+      const stepTitle = rawTitle.split('\n')[0].trim();
       const stepContent = match[0];
       
       const tasks = this.extractTasks(stepContent);
@@ -764,7 +765,7 @@ class PlanParser {
    */
   static extractObjective(content) {
     // Look for explicit objective
-    const objectiveMatch = content.match(/(?:objective|objectif|goal|but)\s*:\s*([^\n]+)/i);
+    const objectiveMatch = content.match(/(?:\*\*)?(?:objective|objectif|goal|but)(?:\*\*)?\s*:\s*([^\n]+)/i);
     if (objectiveMatch) {
       return objectiveMatch[1].trim();
     }

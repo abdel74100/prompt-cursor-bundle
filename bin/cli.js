@@ -9,6 +9,7 @@ const cleanCommand = require('../src/commands/clean');
 const completeCommand = require('../src/commands/complete');
 const bugCommand = require('../src/commands/bug');
 const dashboardCommand = require('../src/commands/dashboard');
+const reviewCommand = require('../src/commands/review');
 
 const program = new Command();
 const packageJson = require('../package.json');
@@ -110,6 +111,15 @@ program
   .action(async (options) => {
     options.interval = parseInt(options.interval);
     await dashboardCommand(options);
+  });
+
+// Review command
+program
+  .command('review')
+  .description('✅ Vérifie la qualité des instructions générées')
+  .option('-o, --output <path>', 'Project directory', process.cwd())
+  .action(async (options) => {
+    await reviewCommand(options);
   });
 
 // Parse arguments

@@ -10,6 +10,7 @@ const { getProvider, getRulesPath, getRulesDir, getPromptDirectory } = require('
 const DependencyGraph = require('../utils/dependencyGraph');
 const MilestoneManager = require('../utils/milestoneManager');
 const ModuleManager = require('../utils/moduleManager');
+const SpecContext = require('../utils/specContext');
 
 /**
  * Build command - Generate intelligent code-run from saved responses
@@ -116,6 +117,7 @@ async function buildCommand(options) {
     let projectName = context.projectName || 'MyProject';
     let milestones = null;
     let complexity = null;
+    let projectContext = {};
     
     if (foundFiles['implementation-plan.md']) {
       console.log(chalk.cyan('\n📖 Parsing implementation plan...'));
@@ -173,6 +175,16 @@ async function buildCommand(options) {
       console.log(chalk.yellow('\n⚠ No implementation plan found, using default steps'));
       steps = CodeRunGenerator.generateDefaultSteps(complexMode ? 10 : 5);
     }
+
+    try {
+      projectContext = await SpecContext.buildContext({
+        specPath: foundFiles['spec.md'],
+        planPath: foundFiles['implementation-plan.md'],
+      });
+    } catch (error) {
+      console.log(chalk.yellow(`⚠ Could not enrich context: ${error.message}`));
+      projectContext = {};
+    }
     
     // Generate code-run
     console.log(chalk.cyan('\n🎨 Generating code-run.md...\n'));
@@ -187,7 +199,8 @@ async function buildCommand(options) {
       complexMode: complexMode,
       modules: selectedModules,
       milestones: milestones,
-      autoGroupMilestones: true
+      autoGroupMilestones: true,
+      projectContext,
     };
     
     const generator = new CodeRunGenerator(generatorOptions);
