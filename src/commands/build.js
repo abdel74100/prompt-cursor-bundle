@@ -68,7 +68,11 @@ async function buildCommand(options) {
     console.log('');
     
     // Ensure directory structure exists
-    await ensureDirectoryStructure(outputDir, aiProviderKey);
+    // In complex mode with modules, skip creating global Instructions folder
+    const structureOptions = (complexMode && selectedModules.length > 0) 
+      ? { skipInstructions: true } 
+      : {};
+    await ensureDirectoryStructure(outputDir, aiProviderKey, structureOptions);
     
     // Check for required files in prompt directory docs/
     const filesToCheck = [
@@ -207,8 +211,9 @@ async function buildCommand(options) {
     
     await generator.generate();
     
-    // Generate dependency graph visualization for complex mode
-    if (complexMode && steps.length > 0) {
+    // Generate dependency graph visualization for complex mode WITHOUT modules
+    // (With modules, each module has its own code-run with dependencies)
+    if (complexMode && steps.length > 0 && selectedModules.length === 0) {
       console.log(chalk.cyan('\n🔗 Generating dependency graph...'));
       
       const depGraph = new DependencyGraph(steps);
@@ -266,29 +271,46 @@ async function buildCommand(options) {
     // Summary
     console.log(chalk.green.bold('\n✨ Build complete!\n'));
     console.log(chalk.cyan('📦 Generated files:'));
-    console.log(chalk.white(`  ✓ ${promptDir}/workflow/code-run.md`));
-    console.log(chalk.white(`  ✓ ${promptDir}/workflow/Instructions/ (${steps.length} files)`));
-    if (complexMode) {
+    
+    // Different output based on mode
+    if (complexMode && selectedModules.length > 0) {
+      // Complex mode WITH modules: only master + modules
+      console.log(chalk.white(`  ✓ ${promptDir}/workflow/master-code-run.md`));
+      console.log(chalk.white(`  ✓ ${promptDir}/modules/ (${selectedModules.length} modules with code-run + instructions)`));
+    } else if (complexMode) {
+      // Complex mode WITHOUT modules: global code-run + instructions + graph
+      console.log(chalk.white(`  ✓ ${promptDir}/workflow/code-run.md`));
+      console.log(chalk.white(`  ✓ ${promptDir}/workflow/Instructions/ (${steps.length} files)`));
       console.log(chalk.white(`  ✓ ${promptDir}/workflow/dependency-graph.md`));
-      if (selectedModules.length > 0) {
-        console.log(chalk.white(`  ✓ ${promptDir}/workflow/master-code-run.md`));
-        console.log(chalk.white(`  ✓ ${promptDir}/modules/ (${selectedModules.length} modules)`));
-      }
+    } else {
+      // Simple mode
+      console.log(chalk.white(`  ✓ ${promptDir}/workflow/code-run.md`));
+      console.log(chalk.white(`  ✓ ${promptDir}/workflow/Instructions/ (${steps.length} files)`));
     }
+    
     if (foundFiles['ai-rules.md']) {
       console.log(chalk.white(`  ✓ ${provider.rulesFile} (${provider.name})`));
     }
     
     console.log(chalk.cyan('\n📋 Next steps:'));
-    console.log(chalk.white(`  1. Open ${promptDir}/workflow/code-run.md`));
-    console.log(chalk.white(`  2. Review ${promptDir}/workflow/Instructions/instructions-step1.md`));
-    if (complexMode) {
+    if (complexMode && selectedModules.length > 0) {
+      console.log(chalk.white(`  1. Open ${promptDir}/workflow/master-code-run.md`));
+      console.log(chalk.white(`  2. Follow the module order (infra → database → auth → ...)`));
+      console.log(chalk.white(`  3. For each module, open modules/{name}/workflow/code-run.md`));
+      console.log(chalk.white(`  4. Use 'prompt-cursor context --dashboard' for progress`));
+      console.log(chalk.white(`  5. Start development! 🚀\n`));
+    } else if (complexMode) {
+      console.log(chalk.white(`  1. Open ${promptDir}/workflow/code-run.md`));
+      console.log(chalk.white(`  2. Review ${promptDir}/workflow/Instructions/instructions-step1.md`));
       console.log(chalk.white(`  3. Check dependency-graph.md for step dependencies`));
       console.log(chalk.white(`  4. Use 'prompt-cursor context --dashboard' for progress`));
+      console.log(chalk.white(`  5. Start development! 🚀\n`));
     } else {
+      console.log(chalk.white(`  1. Open ${promptDir}/workflow/code-run.md`));
+      console.log(chalk.white(`  2. Review ${promptDir}/workflow/Instructions/instructions-step1.md`));
       console.log(chalk.white('  3. Customize the TODOs for your project'));
+      console.log(chalk.white('  4. Start development! 🚀\n'));
     }
-    console.log(chalk.white(`  ${complexMode ? '5' : '4'}. Start development! 🚀\n`));
     
     // Show complexity recommendation
     if (complexity && !complexMode && complexity.level !== 'simple') {

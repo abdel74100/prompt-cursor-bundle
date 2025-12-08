@@ -55,17 +55,24 @@ function getFilePaths(providerKey = DEFAULT_PROVIDER) {
  * Ensure directory structure exists
  * @param {string} projectDir - Project directory path
  * @param {string} providerKey - Provider key
+ * @param {Object} options - Optional configuration
+ * @param {boolean} options.skipInstructions - Skip creating Instructions folder in workflow
  */
-async function ensureDirectoryStructure(projectDir, providerKey = DEFAULT_PROVIDER) {
+async function ensureDirectoryStructure(projectDir, providerKey = DEFAULT_PROVIDER, options = {}) {
   const dirs = getDirs(providerKey);
   
   const dirsToCreate = [
     path.join(projectDir, dirs.ROOT),
     path.join(projectDir, dirs.PROMPTS),
     path.join(projectDir, dirs.DOCS),
-    path.join(projectDir, dirs.WORKFLOW),
-    path.join(projectDir, dirs.INSTRUCTIONS)
+    path.join(projectDir, dirs.WORKFLOW)
   ];
+  
+  // Only create Instructions folder if not skipped
+  // (in complex mode with modules, each module has its own Instructions)
+  if (!options.skipInstructions) {
+    dirsToCreate.push(path.join(projectDir, dirs.INSTRUCTIONS));
+  }
   
   for (const dir of dirsToCreate) {
     try {

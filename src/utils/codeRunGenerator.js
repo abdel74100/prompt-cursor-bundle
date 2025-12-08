@@ -1170,13 +1170,17 @@ class CodeRunGenerator {
 			score: 0
 		};
 		
-		// Check global instructions
-		const globalInstructionsDir = path.join(this.outputDir, this.dirs.INSTRUCTIONS);
-		try {
-			const files = await fs.readdir(globalInstructionsDir);
-			report.totalInstructions = files.filter(f => f.startsWith('instructions-')).length;
-		} catch (error) {
-			report.errors.push('Dossier Instructions global non trouvé');
+		// In complex mode with modules, skip global instructions check
+		// Each module has its own Instructions folder
+		if (!this.complexMode || this.modules.length === 0) {
+			// Check global instructions only in simple mode
+			const globalInstructionsDir = path.join(this.outputDir, this.dirs.INSTRUCTIONS);
+			try {
+				const files = await fs.readdir(globalInstructionsDir);
+				report.totalInstructions = files.filter(f => f.startsWith('instructions-')).length;
+			} catch (error) {
+				report.errors.push('Dossier Instructions global non trouvé');
+			}
 		}
 		
 		// Check module consistency
@@ -1208,14 +1212,19 @@ class CodeRunGenerator {
 		}
 		
 		// Calculate coherence score
-		let totalExpected = report.totalSteps;
-		let totalGenerated = report.totalInstructions;
+		let totalExpected = 0;
+		let totalGenerated = 0;
 		
-		if (this.complexMode) {
+		if (this.complexMode && this.modules.length > 0) {
+			// Complex mode: count only module instructions
 			for (const [key, data] of Object.entries(report.moduleBreakdown)) {
 				totalExpected += data.expectedSteps;
 				totalGenerated += data.generatedInstructions;
 			}
+		} else {
+			// Simple mode: count global instructions
+			totalExpected = report.totalSteps;
+			totalGenerated = report.totalInstructions;
 		}
 		
 		report.score = totalExpected > 0 
@@ -1233,8 +1242,10 @@ class CodeRunGenerator {
 		console.log(chalk.cyan.bold('📊 RAPPORT DE COHÉRENCE'));
 		console.log(chalk.cyan('═'.repeat(50)));
 		
-		// Global stats
-		console.log(chalk.white(`\n📋 Instructions globales: ${report.totalInstructions}/${report.totalSteps}`));
+		// Global stats (only in simple mode)
+		if (report.totalSteps > 0 && Object.keys(report.moduleBreakdown).length === 0) {
+			console.log(chalk.white(`\n📋 Instructions globales: ${report.totalInstructions}/${report.totalSteps}`));
+		}
 		
 		// Module breakdown
 		if (Object.keys(report.moduleBreakdown).length > 0) {
@@ -1291,23 +1302,33 @@ class CodeRunGenerator {
 			console.log('');
 		}
 
-		const codeRunPath = await this.generateCodeRunFile();
-		const instructionFiles = await this.generateInstructionsFiles();
-		
+		let codeRunPath = null;
+		let instructionFiles = [];
 		let moduleFiles = [];
+
+		// Complex mode with modules: only generate module files + master
 		if (this.complexMode && this.modules.length > 0) {
 			moduleFiles = await this.generateModuleFiles();
+			// master-code-run.md is already generated in generateModuleFiles()
+			codeRunPath = path.join(this.outputDir, this.promptDir, 'workflow', 'master-code-run.md');
+		} else {
+			// Simple mode: generate global code-run + instructions
+			codeRunPath = await this.generateCodeRunFile();
+			instructionFiles = await this.generateInstructionsFiles();
 		}
 
 		console.log(chalk.green("\n✨ Génération terminée avec succès!\n"));
 		console.log(chalk.cyan("Fichiers créés:"));
 		console.log(chalk.white(`  - ${codeRunPath}`));
-		console.log(
-			chalk.white(`  - ${path.join(this.outputDir, this.dirs.INSTRUCTIONS)}/`),
-		);
-		instructionFiles.forEach((file) => {
-			console.log(chalk.white(`    - ${path.basename(file)}`));
-		});
+		
+		if (instructionFiles.length > 0) {
+			console.log(
+				chalk.white(`  - ${path.join(this.outputDir, this.dirs.INSTRUCTIONS)}/`),
+			);
+			instructionFiles.forEach((file) => {
+				console.log(chalk.white(`    - ${path.basename(file)}`));
+			});
+		}
 		
 		if (moduleFiles.length > 0) {
 			console.log(chalk.white(`  - Module files: ${moduleFiles.length} fichiers`));

@@ -1,7 +1,9 @@
 const chalk = require('chalk');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const { detectProvider, getDirs, DEFAULT_PROVIDER } = require('../utils/directoryManager');
+const { getPromptDirectory } = require('../utils/aiProviders');
 
 const REQUIRED_SECTIONS = [
   { label: 'Contexte', pattern: /##\s+📋\s+Contexte/i },
@@ -96,42 +98,106 @@ async function reviewCommand(options) {
     const outputDir = path.resolve(options.output || process.cwd());
     const provider = (await detectProvider(outputDir)) || DEFAULT_PROVIDER;
     const dirs = getDirs(provider);
-    const instructionsDir = path.join(outputDir, dirs.INSTRUCTIONS);
-
-    let files;
-    try {
-      files = await fs.readdir(instructionsDir);
-    } catch (error) {
-      console.log(chalk.red(`❌ Impossible de lire ${instructionsDir}`));
-      console.log(chalk.gray('Générez d\'abord les instructions avec `prompt-cursor build`.'));
-      process.exit(1);
-    }
-
-    const instructionFiles = files
-      .filter((file) => file.startsWith('instructions-step') && file.endsWith('.md'))
-      .sort();
-
-    if (instructionFiles.length === 0) {
-      console.log(chalk.red('❌ Aucun fichier d’instructions trouvé.'));
-      process.exit(1);
-    }
-
+    const promptDir = getPromptDirectory(provider);
+    
+    // Check if we're in complex mode (modules directory exists with content)
+    const modulesDir = path.join(outputDir, promptDir, 'modules');
+    const isComplexMode = fsSync.existsSync(modulesDir);
+    
     let hasErrors = false;
+    let totalFiles = 0;
+    let passedFiles = 0;
+    
+    if (isComplexMode) {
+      // Complex mode: review each module's instructions
+      console.log(chalk.cyan('📦 Mode complexe détecté - Review des modules\n'));
+      
+      const modules = await fs.readdir(modulesDir);
+      
+      for (const moduleName of modules) {
+        const moduleInstructionsDir = path.join(modulesDir, moduleName, 'Instructions');
+        
+        // Skip if no Instructions folder
+        if (!fsSync.existsSync(moduleInstructionsDir)) {
+          continue;
+        }
+        
+        const files = await fs.readdir(moduleInstructionsDir);
+        const instructionFiles = files
+          .filter((file) => file.startsWith('instructions-step') && file.endsWith('.md'))
+          .sort();
+        
+        if (instructionFiles.length === 0) {
+          continue;
+        }
+        
+        console.log(chalk.cyan(`\n📁 Module: ${moduleName} (${instructionFiles.length} instructions)`));
+        
+        for (const file of instructionFiles) {
+          totalFiles++;
+          const filePath = path.join(moduleInstructionsDir, file);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const issues = analyzeInstruction(content);
 
-    for (const file of instructionFiles) {
-      const filePath = path.join(instructionsDir, file);
-      const content = await fs.readFile(filePath, 'utf-8');
-      const issues = analyzeInstruction(content);
+          if (issues.length === 0) {
+            passedFiles++;
+            console.log(chalk.green(`  ✓ ${file}`));
+          } else {
+            hasErrors = true;
+            console.log(chalk.red(`  ✗ ${file}`));
+            issues.forEach((issue) => console.log(chalk.red(`     - ${issue}`)));
+          }
+        }
+      }
+      
+      if (totalFiles === 0) {
+        console.log(chalk.red('❌ Aucun fichier d\'instructions trouvé dans les modules.'));
+        process.exit(1);
+      }
+      
+    } else {
+      // Simple mode: review global Instructions folder
+      const instructionsDir = path.join(outputDir, dirs.INSTRUCTIONS);
 
-      if (issues.length === 0) {
-        console.log(chalk.green(`✓ ${file}`));
-      } else {
-        hasErrors = true;
-        console.log(chalk.red(`✗ ${file}`));
-        issues.forEach((issue) => console.log(chalk.red(`   - ${issue}`)));
+      let files;
+      try {
+        files = await fs.readdir(instructionsDir);
+      } catch (error) {
+        console.log(chalk.red(`❌ Impossible de lire ${instructionsDir}`));
+        console.log(chalk.gray('Générez d\'abord les instructions avec `prompt-cursor build`.'));
+        process.exit(1);
+      }
+
+      const instructionFiles = files
+        .filter((file) => file.startsWith('instructions-step') && file.endsWith('.md'))
+        .sort();
+
+      if (instructionFiles.length === 0) {
+        console.log(chalk.red('❌ Aucun fichier d\'instructions trouvé.'));
+        process.exit(1);
+      }
+
+      for (const file of instructionFiles) {
+        totalFiles++;
+        const filePath = path.join(instructionsDir, file);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const issues = analyzeInstruction(content);
+
+        if (issues.length === 0) {
+          passedFiles++;
+          console.log(chalk.green(`✓ ${file}`));
+        } else {
+          hasErrors = true;
+          console.log(chalk.red(`✗ ${file}`));
+          issues.forEach((issue) => console.log(chalk.red(`   - ${issue}`)));
+        }
       }
     }
 
+    // Summary
+    console.log(chalk.cyan('\n' + '─'.repeat(50)));
+    console.log(chalk.white(`📊 Résultat: ${passedFiles}/${totalFiles} instructions valides`));
+    
     if (hasErrors) {
       console.log(chalk.red.bold('\n❌ Review échouée : corrigez les instructions signalées.'));
       process.exit(1);
