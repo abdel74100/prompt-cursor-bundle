@@ -1,326 +1,303 @@
-Ce document décrit :
+La logique résumée **exactement comme tu la veux** :
 
-la vision globale
+---
 
-l’architecture agents
+# 🎯 **Ton intention fonctionnelle**
 
-le fonctionnement des rules par module
+Tu veux que la commande :
 
-les 3 modes de génération (simple / complexe / complexe + agents)
+```
+pcb generate
+```
 
-les spécifications CLI à implémenter
+→ **lance un mode interactif**
 
-les fichiers et conventions
+Et que l’utilisateur choisisse :
 
-les prompts modèles
+1. **Simple Project**
+2. **Complex Project**
+3. **Complex Project + Agents (par défaut si Complex)**
 
-Tout est pensé pour être opérationnel dans ton bundle prompt-cursor-bundle.
+Mais *dans ta vision*, **Complex = automatiquement agents activés**,
+donc tu n’as en réalité que deux niveaux :
 
-# 📘 AI Agent System – Spécification Technique pour Prompt Cursor Bundle
-✨ Objectif
+* **Simple** → pas d’agents
+* **Complex** → avec agents (toujours)
 
-Étendre @abdel-akh/prompt-cursor-bundle afin de :
+Donc le menu interactif doit être :
 
-Créer et orchestrer des agents IA spécialisés (backend, frontend, db, devops, architecture, realtime, etc.)
+```
+Quel type de projet souhaitez-vous générer ?
 
-Associer automatiquement chaque tâche / module à son agent correspondant
+1) Simple
+2) Complex (avec agents)
+```
 
-Utiliser des fichiers de règles (rules.md) propres par agent
+Pas besoin de 3 options.
 
-Générer un projet selon plusieurs modes :
+**Complex implique agents obligatoirement.**
+Tu veux imposer ça pour que le workflow soit cohérent et structuré.
 
-Simple Project → pas d’agents
+---
 
-Complex Project → docs + workflow
+# 📄 Maintenant, voici un fichier Markdown complet, propre, rédigé comme une doc officielle
 
-Complex Project with Agents → docs + workflow + mapping agents + prompts préconfigurés
+Tu peux l’ajouter dans ton repo sous :
+`docs/interactive-generate.md`
 
-# 🏗️ 1. Architecture Agents IA
-🔧 1.1. Structure des agents
+---
 
-Chaque agent est défini par un fichier de configuration central :
+# # 📘 **Interactive Generate Mode – Specification**
 
-.prompt-config/
-└── agents.json
+## 🎯 Objectif
 
+La commande `pcb generate` doit être entièrement interactive.
 
-Exemple :
+Elle doit permettre de générer un projet basé sur :
 
-{
-  "agents": [
-    {
-      "id": "backend",
-      "name": "Backend Agent",
-      "rules": ".prompt-rules/backend-rules.md",
-      "description": "Implémente les API, DB, WebSocket, business logic."
-    },
-    {
-      "id": "frontend-passenger",
-      "name": "Frontend Passenger Agent",
-      "rules": ".prompt-rules/frontend-passenger-rules.md",
-      "description": "Développe les interfaces Passenger côté Next.js"
-    },
-    {
-      "id": "frontend-driver",
-      "name": "Frontend Driver Agent",
-      "rules": ".prompt-rules/frontend-driver-rules.md",
-      "description": "Développe les interfaces Driver et UI mobile responsive."
-    },
-    {
-      "id": "devops",
-      "name": "DevOps Agent",
-      "rules": ".prompt-rules/devops-rules.md",
-      "description": "Génère Docker, CI/CD, pipelines, infrastructure AWS."
-    }
-  ]
-}
+* un mode **Simple**
+* un mode **Complex** (avec agents obligatoires)
 
-# 📚 2. Rules Files – Règles par Agent
-📁 Structure recommandée
-.prompt-rules/
-├── backend-rules.md
-├── frontend-passenger-rules.md
-├── frontend-driver-rules.md
-├── devops-rules.md
-└── architecture-rules.md
+La sélection du mode doit définir le workflow de génération ainsi que les fichiers créés automatiquement.
 
+---
 
-Chaque fichier contient tout le savoir technique, par exemple pour Backend :
+# # 🧭 1. Flow Utilisateur – Mode Interactif
 
-# Backend Technical Rules
+Lors de l'exécution :
 
-## Stack
-- Fastify + TypeScript
-- Prisma ORM
-- PostgreSQL
-- Zod Schemas
-- WebSocket via Socket.io
-- Redis GEO + Pub/Sub
+```bash
+pcb generate
+```
 
-## Conventions
-- Endpoint naming
-- File structure
-- Repositories vs services
-- Error handling
-- Validation rules
+Le CLI affiche :
 
-## Models
-- User
-- Driver
-- Passenger
-- Ride
-- PaymentIntent
+```
+🚀 Prompt Cursor Bundle - Mode Interactif
 
+Quel type de projet souhaitez-vous générer ?
 
-L’utilisateur peut enrichir ces rules, et tous les agents backend les utiliseront automatiquement.
+1) Simple
+2) Complex (avec agents)
 
-# 🧩 3. Modes de génération (nouvelle fonctionnalité)
-🎯 Mode 1 — Simple Project
+Votre choix : 
+```
 
-Commande :
+L'utilisateur entre :
 
-pcb generate simple -i idea.md -o ./my-app
+* `1` → simple
+* `2` → complex (agents activés automatiquement)
 
+---
 
-Résultat :
+# # 🏗️ 2. Détails des modes
 
-prompt-generate.md
+## 🎉 **Mode 1 : Simple Project**
 
-les 4 fichiers générés par IA (project-request, ai-rules, spec, plan)
+📌 Commande :
 
-aucune notion d’agents
+```
+pcb generate  → choix : 1
+```
 
-🚀 Mode 2 — Complex Project (workflow complet)
-pcb generate complex -i idea.md -o ./my-app
+### ✔️ Ce qui est généré :
 
+* lecture de `idea.md`
+* génération de `.prompt-{provider}/prompts/prompt-generate.md`
+* l’utilisateur copie-colle ce prompt dans son assistant AI
+* l’IA génère :
 
-Résultat :
+  * `project-request.md`
+  * `ai-rules.md`
+  * `spec.md`
+  * `implementation-plan.md`
 
-✔️ Tout ce que génère le mode simple
-+
-✔️ build automatique → code-run.md + Instructions/**
-✔️ Parsing intelligent du plan
+### ❌ **Pas de :**
 
-Toujours sans agents.
+* agents
+* rules par agent
+* mapping des tâches
+* workflow intelligent (`code-run.md`, `Instructions/`)
 
-🤖 Mode 3 — Complex Project with Agents
-pcb generate agents -i idea.md -o ./my-app
+Mode idéal pour projets simples.
 
+---
 
-Résultat :
+## 🚀 **Mode 2 : Complex Project (avec agents par défaut)**
 
-✔️ Tout du mode complexe
-✔️ agents.json auto-généré
-✔️ rules files pré-remplis pour chaque agent
-✔️ mapping automatique tâches ↔ agents
-✔️ prompts agents générés automatiquement
+📌 Commande :
 
-# ⚙️ 4. Mapping automatique tâche → agent
+```
+pcb generate  → choix : 2
+```
 
-Ton CLI doit analyser :
+⚠️ **IMPORTANT**
+Dans ce mode, les agents sont activés automatiquement.
+Impossible de faire un “complex sans agents”.
 
-implementation-plan.md
+---
 
-Instructions/**/*
+### ✔️ Ce qui est généré :
 
-Pour détecter les mots-clés :
+#### 1️⃣ Génération standard (simple)
 
-Agent	Keywords
-backend	API, Fastify, Prisma, DB, model, schema
-frontend-passenger	UI passenger, map, booking, ride request
-frontend-driver	driver dashboard, status, tracking
-devops	Docker, CI/CD, AWS, deploy
-realtime	websocket, redis, pub/sub, streaming
+* prompt-generate.md
+* project-request.md
+* ai-rules.md
+* spec.md
+* implementation-plan.md
 
-Et générer :
+#### 2️⃣ Parsing du plan → workflow intelligent
 
-.prompt-workflow/tasks-map.json
+Le CLI génère :
 
+* `.prompt-{provider}/workflow/code-run.md`
+* `.prompt-{provider}/workflow/Instructions/stepX.md`
 
-Exemple :
+#### 3️⃣ Mise en place du système d’agents
 
-{
-  "instructions/backend/step1.md": "backend",
-  "instructions/frontend-passenger/step3.md": "frontend-passenger",
-  "instructions/devops/step2.md": "devops"
-}
+Génération automatique de :
 
-# 🤖 5. Nouvelle commande CLI : pcb agent
-5.1. Exécuter une tâche
-pcb agent backend --task instructions/backend/step1.md
+```
+.prompt-config/agents.json
+.prompt-rules/*-rules.md
+.prompt-agents/run/
+.prompt-agents/templates/
+.prompt-agents/tasks-map.json
+```
 
+#### 4️⃣ Mapping automatique des tâches vers agents
 
-Résultat :
+Grâce à l’analyse du contenu d’`implementation-plan.md` et `Instructions/*`.
 
-Génère un fichier :
+---
 
-.prompt-agents/run/backend-step1.md
+# # 🤖 3. Pourquoi Complex = Agents Obligatoires ?
 
+Voici ta logique (validée) :
 
-Contenant un prompt exploitable :
+### ✔️ 1. Complex Project demande architecture, workflow, parsing
 
-📥 Modèle Prompt Agent
-🚀 START
+→ nécessite coordination
+→ nécessite agents
 
-Tu es l’agent : BACKEND
+### ✔️ 2. Complex Project implique plusieurs modules (frontend, backend, realtime, db...)
 
-🎯 Mission :
-Implémenter les tâches du fichier :
-instructions/backend/step1.md
+→ chaque module doit être pris en charge par un agent spécialisé
 
-📘 Règles Backend :
-(contenu backend-rules.md)
+### ✔️ 3. Complex Project = système multi-fichiers
 
-📐 Architecture générale :
-(contenu spec.md)
+→ gestion manuelle trop lourde
+→ agents nécessaires pour automatiser le développement via AI assistants
 
-📄 Tâches à implémenter :
-(contenu du fichier de l'étape)
+### Donc :
 
-🧱 Contraintes :
-- Respecter strictement les règles Backend
-- Utiliser la stack définie
-- Retourner exclusivement le code et les fichiers modifiés
+> **Si l’utilisateur choisit Complex, il obtient d’office les agents.**
 
-🏁 END
+Aucun choix supplémentaire n’est demandé.
 
-5.2. Exécuter une étape complète
-pcb agent run step=2
+---
 
+# # 🧩 4. Flow technique du CLI
 
-Le CLI :
+Voici le pseudo-code du mode interactif :
 
-Trouve toutes les instructions liées à l’étape 2
+```
+pcb generate:
 
-Regroupe par agent
+  afficher menu interactif:
+    1) Simple
+    2) Complex (avec agents)
 
-Génère un prompt par agent dans .prompt-agents/run/
+  si choix == 1:
+      run generateSimple()
+  
+  si choix == 2:
+      run generateComplex()
+      run generateAgents()
+      run mapTasksToAgents()
+```
 
-# 🔄 6. Nouvelle commande CLI : pcb assign
+### Fonctions attendues
 
-Assigne automatiquement toutes les tâches aux agents :
+#### ✔️ `generateSimple()`
 
-pcb assign
+* créer dossier
+* copier prompt template
+* insérer contenu de idea.md
+* aucun agent
 
+#### ✔️ `generateComplex()`
 
-Résultat :
+* tout ce que simple génère
+* * parsing implementation-plan
+* * workflow complet
 
-génère un fichier .prompt-agents/assignments.md
+#### ✔️ `generateAgents()`
 
-écrit clairement :
+* créer agents.json
+* créer rules par agent
+* créer templates de prompts agents
 
-Étape 1
-- backend → instructions/backend/step1.md
-- frontend-passenger → instructions/frontend-passenger/step1.md
+#### ✔️ `mapTasksToAgents()`
 
-Étape 2
-- backend → step2.md
-- devops → step2.md
+* lire instructions/
+* détecter keywords
+* créer tasks-map.json
 
-# 🚀 7. Nouvelle commande CLI : pcb run
+---
 
-Exécution pipeline AI (manuel assisté)
+# # 📁 5. Structure générée en Mode Complex
 
-pcb run backend step=1
-
-
-Le CLI génère et ouvre le prompt correspondant.
-Tu peux ensuite copier-coller dans ton assistant IA.
-
-# 🧱 8. Structure complète d’un projet avec agents
+```
 my-project/
 ├── idea.md
 ├── .prompt-cursor/
-│   ├── prompts/prompt-generate.md
+│   ├── prompts/
 │   ├── docs/
-│   │   ├── project-request.md
-│   │   ├── ai-rules.md
-│   │   ├── spec.md
-│   │   └── implementation-plan.md
 │   ├── workflow/
 │   │   ├── code-run.md
 │   │   └── Instructions/
 │   └── agents/
 │       ├── agents.json
 │       ├── tasks-map.json
-│       ├── run/
-│       └── templates/
+│       ├── templates/
+│       └── run/
 └── .prompt-rules/
     ├── backend-rules.md
-    ├── frontend-passenger-rules.md
-    ├── frontend-driver-rules.md
+    ├── frontend-rules.md
     ├── devops-rules.md
     └── architecture-rules.md
+```
 
-# 🎁 9. Templates fournis par défaut (auto-générés)
-9.1. Template backend-rules.md
-# Backend Rules – Default Template
+---
 
-## Base Stack
-- Fastify
-- Prisma ORM
-- PostgreSQL
-- Zod
-- JWT Auth
+# # 🔥 6. Exemple de Prompt Agent auto-généré
 
-## File Structure
-src/
- ├─ modules/
- ├─ routes/
- ├─ schemas/
- ├─ services/
+Fichier : `.prompt-agents/run/backend-step1.md`
 
-## Principles
-- Pas de logique dans les routes
-- Validation systématique
-- Services testables
+```
+🚀 START
 
-9.2. Template agent prompt
+Tu es l’agent : BACKEND
 
-Idem que plus haut.
+🎯 Mission :
+Implémenter les tâches définies dans :
+workflow/Instructions/backend-step1.md
 
-# 📌 10. Suggestion d’évolution future
-✔️ Agents auto-exécutables (mode autonome complet)
-✔️ Génération automatique de tests (unité + e2e)
-✔️ Lien avec ta roadmap GitHub (issues auto)
-✔️ Support multi-LLM (OpenAI, Claude, Groq, DeepSeek)
+📘 Règles Backend :
+(contient .prompt-rules/backend-rules.md)
+
+📐 Architecture globale :
+(contient spec.md)
+
+🧩 Tâches à réaliser :
+(contenu du fichier d’instructions)
+
+🧱 Contraintes :
+- respecter les conventions backend
+- ne jamais modifier la structure existante
+- retourner uniquement du code valide
+
+🏁 END
+```
