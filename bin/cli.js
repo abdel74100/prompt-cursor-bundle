@@ -9,6 +9,9 @@ const cleanCommand = require('../src/commands/clean');
 const completeCommand = require('../src/commands/complete');
 const bugCommand = require('../src/commands/bug');
 const dashboardCommand = require('../src/commands/dashboard');
+const agentCommand = require('../src/commands/agent');
+const assignCommand = require('../src/commands/assign');
+const runCommand = require('../src/commands/run');
 
 const program = new Command();
 const packageJson = require('../package.json');
@@ -29,10 +32,39 @@ program
   .option('-p, --provider <provider>', 'AI provider (cursor, claude, windsurf, copilot)')
   .option('-a, --auto', 'Auto mode: watch for files and run build automatically')
   .option('-c, --complex', '📦 Enable complex project mode (modules, milestones, dependencies)')
+  .option('--agents', '🤖 Enable agents mode (complex + AI agents workflow)')
   .option('-m, --modules <modules>', 'Comma-separated list of modules (frontend,backend,api,database,infra,auth,testing)')
   .option('--simple', 'Force simple mode (disable complex features)')
   .action(async (options) => {
     await generateCommand(options);
+  });
+
+// Generate subcommands for different modes
+program
+  .command('generate:simple')
+  .description('📝 Generate simple project (no agents)')
+  .option('-i, --idea-file <path>', 'Path to your idea file (required)')
+  .option('-o, --output <path>', 'Output directory', './my-project')
+  .action(async (options) => {
+    await generateCommand({ ...options, simple: true });
+  });
+
+program
+  .command('generate:complex')
+  .description('📦 Generate complex project (docs + workflow)')
+  .option('-i, --idea-file <path>', 'Path to your idea file (required)')
+  .option('-o, --output <path>', 'Output directory', './my-project')
+  .action(async (options) => {
+    await generateCommand({ ...options, complex: true });
+  });
+
+program
+  .command('generate:agents')
+  .description('🤖 Generate complex project with agents')
+  .option('-i, --idea-file <path>', 'Path to your idea file (required)')
+  .option('-o, --output <path>', 'Output directory', './my-project')
+  .action(async (options) => {
+    await generateCommand({ ...options, agents: true });
   });
 
 // Context command
@@ -112,6 +144,41 @@ program
     await dashboardCommand(options);
   });
 
+// Agent command
+program
+  .command('agent [agentId]')
+  .description('🤖 Execute tasks with specific agents')
+  .option('-t, --task <path>', 'Path to task/instruction file')
+  .option('-p, --path <path>', 'Path to project directory', '.')
+  .option('-s, --step <number>', 'Step number (for "run" subcommand)')
+  .option('--preview', 'Show prompt preview')
+  .action(async (agentId, options) => {
+    await agentCommand(agentId, options);
+  });
+
+// Assign command
+program
+  .command('assign')
+  .description('🎯 Auto-assign tasks to agents')
+  .option('-p, --path <path>', 'Path to project directory', '.')
+  .option('-f, --force', 'Force reassignment even if already assigned')
+  .option('--no-generate-rules', 'Skip generating rules files')
+  .action(async (options) => {
+    await assignCommand(options);
+  });
+
+// Run command
+program
+  .command('run [agentOrStep]')
+  .description('🚀 Execute agent pipeline (manual assisted)')
+  .option('-p, --path <path>', 'Path to project directory', '.')
+  .option('-a, --agent <agent>', 'Specific agent to run')
+  .option('-s, --step <number>', 'Step number to run')
+  .option('--no-copy', 'Do not copy to clipboard')
+  .action(async (agentOrStep, options) => {
+    await runCommand(agentOrStep, options);
+  });
+
 // Parse arguments
 program.parse();
 
@@ -127,18 +194,25 @@ if (!process.argv.slice(2).length) {
   console.log(chalk.white('  4. Save generated files'));
   console.log(chalk.white('  5. Run: prompt-cursor build\n'));
   
-  console.log(chalk.cyan('Complex Projects:'));
-  console.log(chalk.white('  prompt-cursor generate -i idea.md --complex'));
-  console.log(chalk.gray('  → Enables modules, milestones, and dependency tracking\n'));
+  console.log(chalk.cyan('Generation Modes:'));
+  console.log(chalk.white('  pcb generate:simple -i idea.md   📝 Simple project'));
+  console.log(chalk.white('  pcb generate:complex -i idea.md  📦 Complex with modules'));
+  console.log(chalk.white('  pcb generate:agents -i idea.md   🤖 Complex + AI agents\n'));
+  
+  console.log(chalk.cyan('AI Agents Workflow:'));
+  console.log(chalk.white('  pcb assign                       🎯 Map tasks to agents'));
+  console.log(chalk.white('  pcb agent backend --task <file>  🤖 Generate agent prompt'));
+  console.log(chalk.white('  pcb run --step=1                 🚀 Run step with agents'));
+  console.log(chalk.gray('  → Specialized agents for backend, frontend, devops...\n'));
   
   console.log(chalk.cyan('Bug Tracking:'));
-  console.log(chalk.white('  prompt-cursor bug --add        Add a bug'));
-  console.log(chalk.white('  prompt-cursor bug --check "error message"'));
+  console.log(chalk.white('  pcb bug --add        Add a bug'));
+  console.log(chalk.white('  pcb bug --check "error message"'));
   console.log(chalk.gray('  → Check if error has known solution\n'));
   
   console.log(chalk.cyan('Dashboard:'));
-  console.log(chalk.white('  prompt-cursor dashboard        View project status'));
-  console.log(chalk.white('  prompt-cursor dash --watch     Live dashboard\n'));
+  console.log(chalk.white('  pcb dashboard        View project status'));
+  console.log(chalk.white('  pcb dash --watch     Live dashboard\n'));
   
   program.outputHelp();
 }

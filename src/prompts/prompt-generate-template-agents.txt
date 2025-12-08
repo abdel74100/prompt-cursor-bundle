@@ -1,0 +1,144 @@
+# 🤖 AI Agent System - Project Generation
+
+You are an expert software architect and AI system designer. Your task is to analyze a project idea and generate comprehensive documentation with agent-based development workflow.
+
+---
+
+## 📥 PROJECT IDEA
+
+{{IDEA}}
+
+---
+
+# Your Task
+
+Based on the project idea above, generate **5 MARKDOWN FILES**:
+
+## 📄 File 1: `project-request.md`
+Transform the raw idea into a structured project request:
+- Clear project title
+- Executive summary (2-3 sentences)
+- Business objectives
+- Target users
+- Key features list
+- Success metrics
+- Constraints and limitations
+
+## 📄 File 2: `ai-rules.md`
+Define AI-specific coding rules for this project. Include:
+- Code style and conventions
+- File naming patterns
+- Architecture patterns to follow
+- Security requirements
+- Performance guidelines
+- Testing requirements
+- Documentation standards
+- Agent-specific instructions (each agent should follow these base rules)
+
+## 📄 File 3: `spec.md`
+Create detailed technical specifications:
+- System architecture overview
+- Component breakdown
+- Data models / schemas
+- API endpoints (if applicable)
+- Authentication flow
+- Third-party integrations
+- Technology stack with versions
+- **Agent responsibilities** (which agent handles which component)
+
+## 📄 File 4: `implementation-plan.md`
+Generate a step-by-step implementation plan:
+- Each step should have:
+  - Clear title
+  - Objective
+  - **Agent assignment** (e.g., `Agent: backend`, `Agent: frontend`)
+  - Specific tasks with checkboxes
+  - Estimated time
+  - Dependencies (e.g., `Depends on: Step 1`)
+  - Success criteria
+
+Format example:
+```
+## Step 1: Project Setup and Infrastructure
+**Agent:** devops
+**Objective:** Initialize project structure and core dependencies
+**Depends on:** none
+**Estimated:** 2 hours
+
+### Tasks:
+- [ ] Create monorepo structure
+- [ ] Configure TypeScript
+- [ ] Set up Docker environment
+- [ ] Initialize CI/CD pipeline
+
+### Success Criteria:
+- Project builds successfully
+- Docker containers run
+```
+
+## 📄 File 5: `agents.json`
+Define the agents required for this project:
+```json
+{
+  "agents": [
+    {
+      "id": "backend",
+      "name": "Backend Agent",
+      "rules": ".prompt-rules/backend-rules.md",
+      "description": "Implements APIs, DB, business logic."
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend Agent",
+      "rules": ".prompt-rules/frontend-rules.md",
+      "description": "Develops UI interfaces."
+    }
+  ]
+}
+```
+
+Include only the agents actually needed for this project. Common agents:
+- **backend**: APIs, server logic, database
+- **frontend**: UI, components, pages
+- **database**: Schema, migrations, seeds
+- **auth**: Authentication, authorization
+- **devops**: Docker, CI/CD, infrastructure
+- **realtime**: WebSocket, streaming
+- **testing**: Unit tests, e2e tests
+
+---
+
+## 📋 OUTPUT FORMAT
+
+For each file, output in this format:
+
+```
+### FILE: filename.md
+---
+[file content]
+---
+```
+
+For agents.json:
+```
+### FILE: agents.json
+---
+{
+  "agents": [...]
+}
+---
+```
+
+---
+
+## ⚠️ IMPORTANT RULES
+
+1. **Be specific** - Use exact technology names and versions
+2. **Be complete** - Cover all aspects of the project
+3. **Be practical** - Steps should be actionable
+4. **Assign agents** - Every step must have an agent assignment
+5. **Define dependencies** - Steps should reference their prerequisites
+6. **Estimate time** - Provide realistic time estimates
+7. **Create only needed agents** - Don't include agents that won't be used
+
+Now analyze the project idea and generate all 5 files.

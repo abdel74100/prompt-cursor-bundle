@@ -9,6 +9,7 @@ const { generateVersionsSection } = require('../utils/versionCompatibility');
 const { getProvider, getProviderChoices, getPromptDirectory } = require('../utils/aiProviders');
 const { extractPromptContent, copyToClipboard, watchForFiles } = require('../utils/fileWatcher');
 const ModuleManager = require('../utils/moduleManager');
+const AgentManager = require('../utils/agentManager');
 const buildCommand = require('./build');
 
 /**
@@ -36,7 +37,7 @@ function ensureDirectoryExists(dirPath) {
 
 /**
  * Generate command - Create a single intelligent prompt that generates all files
- * Now supports complex mode with modules
+ * Now supports complex mode with modules and agents mode
  */
 async function generateCommand(options) {
   console.log(chalk.blue.bold('\n🚀 Generate - One Prompt to Rule Them All\n'));
@@ -48,6 +49,7 @@ async function generateCommand(options) {
     let outputDir = options.output;
     let aiProvider = options.provider;
     let complexMode = options.complex || false;
+    let agentsMode = options.agents || false;
     let selectedModules = options.modules ? options.modules.split(',') : [];
     
     // Ask for missing info
@@ -93,13 +95,18 @@ async function generateCommand(options) {
       });
     }
     
-    // Ask for complex mode if not specified
-    if (!options.complex && !options.simple) {
+    // Ask for generation mode if not specified
+    if (!options.complex && !options.simple && !options.agents) {
       questions.push({
-        type: 'confirm',
-        name: 'complexMode',
-        message: '📦 Enable complex project mode? (modules, milestones, dependencies)',
-        default: false
+        type: 'list',
+        name: 'generationMode',
+        message: 'Select generation mode:',
+        choices: [
+          { name: '📝 Simple - Basic project structure', value: 'simple' },
+          { name: '📦 Complex - Modules, milestones, dependencies', value: 'complex' },
+          { name: '🤖 Agents - Complex + AI agents workflow', value: 'agents' }
+        ],
+        default: 'simple'
       });
     }
     
@@ -109,13 +116,27 @@ async function generateCommand(options) {
       ideaFile = ideaFile || answers.ideaFile;
       outputDir = outputDir || answers.outputDir;
       aiProvider = aiProvider || answers.aiProvider;
-      complexMode = complexMode || answers.complexMode || false;
+      
+      // Handle generation mode
+      if (answers.generationMode) {
+        if (answers.generationMode === 'complex') {
+          complexMode = true;
+        } else if (answers.generationMode === 'agents') {
+          agentsMode = true;
+          complexMode = true;
+        }
+      }
     }
     
-    // In complex mode, automatically use ALL modules (no interactive selection)
+    // Agents mode implies complex mode
+    if (agentsMode) {
+      complexMode = true;
+    }
+    
+    // In complex/agents mode, automatically use ALL modules
     if (complexMode && selectedModules.length === 0) {
       selectedModules = Object.keys(ModuleManager.getModuleDefinitions());
-      console.log(chalk.blue(`📦 Mode complexe: tous les modules activés automatiquement`));
+      console.log(chalk.blue(`📦 Mode ${agentsMode ? 'agents' : 'complexe'}: tous les modules activés automatiquement`));
       console.log(chalk.gray(`   → ${selectedModules.join(', ')}`));
       console.log(chalk.gray(`   (L'IA structurera le plan selon les besoins du projet)\n`));
     }
@@ -143,11 +164,19 @@ async function generateCommand(options) {
     ensureDirectoryExists(outputDir);
     await ensureDirectoryStructure(outputDir, aiProvider);
     
-    // Load template (use complex template if in complex mode)
-    const templateName = complexMode ? 'prompt-generate-template-complex.txt' : 'prompt-generate-template.txt';
+    // Load template based on mode
+    let templateName;
+    if (agentsMode) {
+      templateName = 'prompt-generate-template-agents.txt';
+    } else if (complexMode) {
+      templateName = 'prompt-generate-template-complex.txt';
+    } else {
+      templateName = 'prompt-generate-template.txt';
+    }
+    
     let templatePath = path.join(__dirname, '../prompts/', templateName);
     
-    // Fallback to standard template if complex doesn't exist
+    // Fallback to standard template if template doesn't exist
     if (!fsSync.existsSync(templatePath)) {
       templatePath = path.join(__dirname, '../prompts/prompt-generate-template.txt');
     }
@@ -162,8 +191,11 @@ async function generateCommand(options) {
       .replace('{{IDEA}}', ideaContent)
       .replace(/\{\{PROMPT_DIR\}\}/g, promptDir);
     
-    // Add complex mode instructions if enabled
-    if (complexMode) {
+    // Add mode-specific instructions
+    if (agentsMode) {
+      const agentsInstructions = generateAgentsModeInstructions(ideaContent);
+      promptContent = promptContent.replace('# Your Task', `${agentsInstructions}\n\n# Your Task`);
+    } else if (complexMode) {
       const complexInstructions = generateComplexModeInstructions(selectedModules);
       promptContent = promptContent.replace('# Your Task', `${complexInstructions}\n\n# Your Task`);
     }
@@ -184,33 +216,47 @@ async function generateCommand(options) {
     fileContent += `**Dossier:** \`${promptDir}/\`\n`;
     fileContent += `**Fichier de règles:** \`${provider.rulesFile}\`\n`;
     
-    if (complexMode) {
+    if (agentsMode) {
+      fileContent += `**Mode:** 🤖 Agents\n`;
+      fileContent += `**Modules:** ${selectedModules.join(', ')}\n`;
+    } else if (complexMode) {
       fileContent += `**Mode:** 📦 Complexe\n`;
       fileContent += `**Modules:** ${selectedModules.join(', ')}\n`;
     }
     
     fileContent += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    fileContent += `## 📋 Instructions (4 étapes)\n\n`;
+    
+    const numFiles = agentsMode ? 5 : 4;
+    const buildFlag = agentsMode ? ' --agents' : (complexMode ? ' --complex' : '');
+    
+    fileContent += `## 📋 Instructions (${numFiles} étapes)\n\n`;
     fileContent += `1️⃣ **Copier** le prompt entre 🚀 START et 🏁 END  \n`;
     fileContent += `2️⃣ **Coller** dans ${provider.name}  \n`;
-    fileContent += `3️⃣ **Sauvegarder** les 4 fichiers dans \`${promptDir}/docs/\`  \n`;
-    fileContent += `4️⃣ **Lancer** : \`prompt-cursor build${complexMode ? ' --complex' : ''}\`\n\n`;
+    fileContent += `3️⃣ **Sauvegarder** les ${numFiles} fichiers dans \`${promptDir}/docs/\`  \n`;
+    fileContent += `4️⃣ **Lancer** : \`prompt-cursor build${buildFlag}\`\n\n`;
     fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     fileContent += `## 🚀 START - COPIER TOUT CE QUI SUIT\n\n`;
     fileContent += promptContent;
     fileContent += `\n\n## 🏁 END - ARRÊTER DE COPIER\n\n`;
     fileContent += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     fileContent += `## 📁 Où sauvegarder les fichiers générés\n\n`;
-    fileContent += `${provider.name} va générer 4 fichiers. Sauvegardez-les dans \`${promptDir}/docs/\` :\n\n`;
+    fileContent += `${provider.name} va générer ${numFiles} fichiers. Sauvegardez-les dans \`${promptDir}/docs/\` :\n\n`;
     fileContent += `\`\`\`\n`;
     fileContent += `${promptDir}/docs/project-request.md\n`;
     fileContent += `${promptDir}/docs/ai-rules.md\n`;
     fileContent += `${promptDir}/docs/spec.md\n`;
     fileContent += `${promptDir}/docs/implementation-plan.md\n`;
+    if (agentsMode) {
+      fileContent += `${promptDir}/docs/agents.json\n`;
+    }
     fileContent += `\`\`\`\n\n`;
     fileContent += `## ⚡ Ensuite\n\n`;
     fileContent += `\`\`\`bash\n`;
-    fileContent += `prompt-cursor build${complexMode ? ' --complex' : ''}  # Génère ${provider.rulesFile} + code-run.md + Instructions/\n`;
+    fileContent += `prompt-cursor build${buildFlag}  # Génère ${provider.rulesFile} + code-run.md + Instructions/\n`;
+    if (agentsMode) {
+      fileContent += `prompt-cursor assign  # Mappe les tâches aux agents\n`;
+      fileContent += `prompt-cursor run --step=1  # Lance le premier step avec les agents\n`;
+    }
     fileContent += `\`\`\`\n`;
     
     await fs.writeFile(promptFilePath, fileContent, 'utf-8');
@@ -220,7 +266,10 @@ async function generateCommand(options) {
     console.log(chalk.gray(`Directory: ${promptDir}/`));
     console.log(chalk.gray(`Rules file: ${provider.rulesFile}`));
     
-    if (complexMode) {
+    if (agentsMode) {
+      console.log(chalk.blue(`Mode: 🤖 Agents`));
+      console.log(chalk.gray(`Modules: ${selectedModules.join(', ')}`));
+    } else if (complexMode) {
       console.log(chalk.blue(`Mode: 📦 Complex`));
       console.log(chalk.gray(`Modules: ${selectedModules.join(', ')}`));
     }
@@ -234,23 +283,35 @@ async function generateCommand(options) {
     context.aiProvider = aiProvider;
     context.workflow.type = 'generate';
     context.complexMode = complexMode;
+    context.agentsMode = agentsMode;
     context.modules = selectedModules;
     recordCommand(context, 'generate', options);
     trackFile(context, `${promptDir}/prompts/prompt-generate.md`, 'generated');
     updateWorkflowPhase(context, 'prompt');
     saveContext(context, outputDir, aiProvider);
     
-    // Save project config for complex mode
-    if (complexMode) {
+    // Save project config
+    if (complexMode || agentsMode) {
       const configPath = path.join(outputDir, promptDir, 'project-config.json');
       const config = {
         projectName,
         complexMode: true,
+        agentsMode: agentsMode,
         modules: selectedModules,
         aiProvider,
         createdAt: new Date().toISOString()
       };
       await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    }
+    
+    // Create agents directory structure for agents mode
+    if (agentsMode) {
+      const agentManager = new AgentManager(outputDir, aiProvider);
+      const detectedAgents = AgentManager.detectAgentsFromIdea(ideaContent);
+      await agentManager.initializeAgents(detectedAgents);
+      await agentManager.createDirectoryStructure();
+      await agentManager.generateRulesFiles();
+      console.log(chalk.green(`✓ Created agents structure and rules files`));
     }
       
     // Instructions
@@ -262,8 +323,19 @@ async function generateCommand(options) {
     console.log(chalk.gray(`     - ${promptDir}/docs/ai-rules.md`));
     console.log(chalk.gray(`     - ${promptDir}/docs/spec.md`));
     console.log(chalk.gray(`     - ${promptDir}/docs/implementation-plan.md`));
-    console.log(chalk.white(`  4. Run: prompt-cursor build${complexMode ? ' --complex' : ''}`));
-    console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/\n`));
+    if (agentsMode) {
+      console.log(chalk.gray(`     - ${promptDir}/docs/agents.json`));
+    }
+    console.log(chalk.white(`  4. Run: prompt-cursor build${buildFlag}`));
+    console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/`));
+    
+    if (agentsMode) {
+      console.log(chalk.white(`  5. Run: prompt-cursor assign`));
+      console.log(chalk.gray(`     → Maps tasks to specialized agents`));
+      console.log(chalk.white(`  6. Run: prompt-cursor run --step=1`));
+      console.log(chalk.gray(`     → Generates agent prompts for step 1`));
+    }
+    console.log('');
       
     console.log(chalk.green('✨ All files will be in:'), chalk.bold(outputDir + '/\n'));
     
@@ -350,6 +422,68 @@ function generateComplexModeInstructions(modules) {
   instructions += `   - Use \`## Phase 1: MVP\` headers to define milestones\n\n`;
   instructions += `4. **Estimated Time**: Provide time estimates for each step\n`;
   instructions += `   - Format: \`Estimated: 4 hours\` or \`Estimated: 2 days\`\n\n`;
+  
+  return instructions;
+}
+
+/**
+ * Generate agents mode instructions for the prompt
+ */
+function generateAgentsModeInstructions(ideaContent) {
+  // Detect agents from idea
+  const detectedAgents = AgentManager.detectAgentsFromIdea(ideaContent);
+  const defaultAgents = AgentManager.getDefaultAgents();
+  
+  let instructions = `# 🤖 AI Agents Mode\n\n`;
+  instructions += `This project uses specialized AI agents for development. Each agent handles specific domains.\n\n`;
+  
+  instructions += `## Detected Agents:\n\n`;
+  for (const agentId of detectedAgents) {
+    const agent = defaultAgents[agentId];
+    if (agent) {
+      instructions += `- ${agent.icon} **${agent.name}** (${agentId}): ${agent.description}\n`;
+    }
+  }
+  
+  instructions += `\n## Agent Assignment Requirements:\n\n`;
+  instructions += `For each step in the implementation plan, you MUST specify:\n\n`;
+  instructions += `1. **Agent**: Which agent handles this step\n`;
+  instructions += `   - Format: \`Agent: backend\` or \`Agent: frontend\`\n`;
+  instructions += `   - Use the agent ID from the list above\n\n`;
+  instructions += `2. **Dependencies**: Which steps must complete first\n`;
+  instructions += `   - Format: \`Depends on: Step 1, Step 3\` or \`Depends on: none\`\n\n`;
+  instructions += `3. **Estimated Time**: Time estimate for the step\n`;
+  instructions += `   - Format: \`Estimated: 4 hours\` or \`Estimated: 2 days\`\n\n`;
+  
+  instructions += `## Implementation Plan Format:\n\n`;
+  instructions += `\`\`\`markdown\n`;
+  instructions += `## Step 1: Setup Database Schema\n`;
+  instructions += `**Agent:** database\n`;
+  instructions += `**Depends on:** none\n`;
+  instructions += `**Estimated:** 2 hours\n\n`;
+  instructions += `### Tasks:\n`;
+  instructions += `- [ ] Create Prisma schema\n`;
+  instructions += `- [ ] Define User model\n`;
+  instructions += `- [ ] Run initial migration\n\n`;
+  instructions += `### Success Criteria:\n`;
+  instructions += `- Database schema is valid\n`;
+  instructions += `- Migration runs successfully\n`;
+  instructions += `\`\`\`\n\n`;
+  
+  instructions += `## agents.json Output:\n\n`;
+  instructions += `Generate an agents.json file listing only the agents needed for this project:\n\n`;
+  instructions += `\`\`\`json\n`;
+  instructions += `{\n`;
+  instructions += `  "agents": [\n`;
+  instructions += `    {\n`;
+  instructions += `      "id": "backend",\n`;
+  instructions += `      "name": "Backend Agent",\n`;
+  instructions += `      "rules": ".prompt-rules/backend-rules.md",\n`;
+  instructions += `      "description": "Implements APIs, DB, business logic."\n`;
+  instructions += `    }\n`;
+  instructions += `  ]\n`;
+  instructions += `}\n`;
+  instructions += `\`\`\`\n\n`;
   
   return instructions;
 }
