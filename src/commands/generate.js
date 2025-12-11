@@ -7,9 +7,8 @@ const { loadContext, saveContext, recordCommand, trackFile, updateWorkflowPhase 
 const { ensureDirectoryStructure, getFilePath, getDirs } = require('../utils/directoryManager');
 const { generateVersionsSection } = require('../utils/versionCompatibility');
 const { getProvider, getProviderChoices, getPromptDirectory } = require('../utils/aiProviders');
-const { extractPromptContent, copyToClipboard, watchForFiles } = require('../utils/fileWatcher');
+const { extractPromptContent, copyToClipboard } = require('../utils/fileWatcher');
 const ModuleManager = require('../utils/moduleManager');
-const buildCommand = require('./build');
 
 /**
  * Load content from file
@@ -34,6 +33,25 @@ function ensureDirectoryExists(dirPath) {
   }
 }
 
+async function resolveProjectMode(options) {
+  if (options.simple && options.complex) return 'complex';
+  if (options.simple) return 'simple';
+  if (options.complex) return 'complex';
+
+  const answer = await inquirer.prompt([{
+    type: 'list',
+    name: 'projectMode',
+    message: 'Quel type de projet souhaitez-vous générer ?',
+    choices: [
+      { name: '1) Simple', value: 'simple', short: 'Simple' },
+      { name: '2) Complex (avec agents)', value: 'complex', short: 'Complex' }
+    ],
+    default: 'complex'
+  }]);
+
+  return answer.projectMode;
+}
+
 /**
  * Generate command - Create a single intelligent prompt that generates all files
  * Now supports complex mode with modules
@@ -43,12 +61,16 @@ async function generateCommand(options) {
   console.log(chalk.gray('This creates a single intelligent prompt for your AI assistant.\n'));
 
   try {
+    const projectMode = await resolveProjectMode(options);
+    const complexMode = projectMode === 'complex';
+    
     let projectName = options.name;
     let ideaFile = options.ideaFile;
     let outputDir = options.output;
     let aiProvider = options.provider;
-    let complexMode = options.complex || false;
-    let selectedModules = options.modules ? options.modules.split(',') : [];
+    const selectedModules = complexMode ? Object.keys(ModuleManager.getModuleDefinitions()) : [];
+    
+    console.log(chalk.cyan(`Mode sélectionné: ${projectMode === 'complex' ? 'Complex (agents auto)' : 'Simple'}`));
     
     // Ask for missing info
     const questions = [];
@@ -93,31 +115,12 @@ async function generateCommand(options) {
       });
     }
     
-    // Ask for complex mode if not specified
-    if (!options.complex && !options.simple) {
-      questions.push({
-        type: 'confirm',
-        name: 'complexMode',
-        message: '📦 Enable complex project mode? (modules, milestones, dependencies)',
-        default: false
-      });
-    }
-    
     if (questions.length > 0) {
       const answers = await inquirer.prompt(questions);
       projectName = projectName || answers.projectName;
       ideaFile = ideaFile || answers.ideaFile;
       outputDir = outputDir || answers.outputDir;
       aiProvider = aiProvider || answers.aiProvider;
-      complexMode = complexMode || answers.complexMode || false;
-    }
-    
-    // In complex mode, automatically use ALL modules (no interactive selection)
-    if (complexMode && selectedModules.length === 0) {
-      selectedModules = Object.keys(ModuleManager.getModuleDefinitions());
-      console.log(chalk.blue(`📦 Mode complexe: tous les modules activés automatiquement`));
-      console.log(chalk.gray(`   → ${selectedModules.join(', ')}`));
-      console.log(chalk.gray(`   (L'IA structurera le plan selon les besoins du projet)\n`));
     }
     
     // Get provider configuration
@@ -186,7 +189,7 @@ async function generateCommand(options) {
     
     if (complexMode) {
       fileContent += `**Mode:** 📦 Complexe\n`;
-      fileContent += `**Modules:** ${selectedModules.join(', ')}\n`;
+      fileContent += `**Modules:** tous (activés par défaut)\n`;
     }
     
     fileContent += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -263,46 +266,18 @@ async function generateCommand(options) {
     console.log(chalk.gray(`     - ${promptDir}/docs/spec.md`));
     console.log(chalk.gray(`     - ${promptDir}/docs/implementation-plan.md`));
     console.log(chalk.white(`  4. Run: prompt-cursor build${complexMode ? ' --complex' : ''}`));
-    console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/\n`));
+    console.log(chalk.gray(`     → This generates ${provider.rulesFile} + code-run.md + Instructions/${complexMode ? ' + agents' : ''}\n`));
       
     console.log(chalk.green('✨ All files will be in:'), chalk.bold(outputDir + '/\n'));
     
-    // Auto mode: copy to clipboard and watch for files
-    if (options.auto) {
-      console.log(chalk.blue.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-      console.log(chalk.blue.bold('🤖 Mode Auto activé\n'));
-      
-      // Extract prompt content between START and END
-      const promptToClipboard = extractPromptContent(fileContent);
-      
-      if (promptToClipboard) {
-        const copied = await copyToClipboard(promptToClipboard);
-        if (copied) {
-          console.log(chalk.green('📋 Prompt copié dans le presse-papiers !'));
-          console.log(chalk.gray('   (Contenu entre 🚀 START et 🏁 END uniquement)\n'));
-        } else {
-          console.log(chalk.yellow('⚠️  Impossible de copier dans le presse-papiers.'));
-          console.log(chalk.gray('   Copiez manuellement le contenu du fichier.\n'));
-        }
+    // Copy prompt to clipboard (best-effort)
+    const promptToClipboard = extractPromptContent(fileContent);
+    if (promptToClipboard) {
+      const copied = await copyToClipboard(promptToClipboard);
+      if (copied) {
+        console.log(chalk.green('📋 Prompt copié dans le presse-papiers !'));
+        console.log(chalk.gray('   (Contenu entre 🚀 START et 🏁 END uniquement)\n'));
       }
-      
-      console.log(chalk.cyan(`👉 Collez le prompt dans ${provider.name} et sauvegardez les fichiers.\n`));
-      
-      // Watch for files
-      const docsDir = path.join(outputDir, promptDir, 'docs');
-      
-      watchForFiles(docsDir, async () => {
-        console.log(chalk.blue.bold('\n🔨 Lancement automatique de build...\n'));
-        
-        // Run build command with complex mode if enabled
-        await buildCommand({ 
-          output: outputDir,
-          complex: complexMode,
-          modules: selectedModules.join(',')
-        });
-        
-        console.log(chalk.green.bold('\n✅ Mode auto terminé ! Votre projet est prêt.\n'));
-      });
     }
     
   } catch (error) {
@@ -353,5 +328,4 @@ function generateComplexModeInstructions(modules) {
   
   return instructions;
 }
-
 module.exports = generateCommand;

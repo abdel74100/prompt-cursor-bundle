@@ -11,6 +11,7 @@ const DependencyGraph = require('../utils/dependencyGraph');
 const MilestoneManager = require('../utils/milestoneManager');
 const ModuleManager = require('../utils/moduleManager');
 const SpecContext = require('../utils/specContext');
+const { generateAgentsArtifacts } = require('../utils/agentsGenerator');
 
 /**
  * Build command - Generate intelligent code-run from saved responses
@@ -37,9 +38,7 @@ async function buildCommand(options) {
     
     // Detect complex mode from options or context
     let complexMode = options.complex || context.complexMode || false;
-    let selectedModules = options.modules 
-      ? options.modules.split(',') 
-      : (context.modules || []);
+    let selectedModules = complexMode ? (context.modules || []) : [];
     
     // Try to load project config
     const configPath = path.join(outputDir, promptDir, 'project-config.json');
@@ -166,6 +165,12 @@ async function buildCommand(options) {
           console.log(chalk.green(`✓ Grouped into ${steps.length} development phases`));
         }
         
+        if (steps.length === 0) {
+          const fallbackCount = complexMode ? 10 : 5;
+          steps = CodeRunGenerator.generateDefaultSteps(fallbackCount);
+          console.log(chalk.yellow(`⚠ Plan vide, génération de ${fallbackCount} étapes par défaut`));
+        }
+        
       } catch (error) {
         console.log(chalk.yellow(`⚠ Could not parse plan: ${error.message}`));
         console.log(chalk.yellow('Using default steps instead...'));
@@ -206,6 +211,18 @@ async function buildCommand(options) {
     const generator = new CodeRunGenerator(generatorOptions);
     
     await generator.generate();
+    
+    // Generate agents artifacts in complex mode
+    if (complexMode) {
+      console.log(chalk.cyan('\n🤖 Génération des agents...\n'));
+      await generateAgentsArtifacts({
+        outputDir,
+        aiProvider: aiProviderKey,
+        projectName,
+        steps,
+        modules: selectedModules
+      });
+    }
     
     // Generate dependency graph visualization for complex mode
     if (complexMode && steps.length > 0) {

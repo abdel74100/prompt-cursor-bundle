@@ -1,0 +1,293 @@
+{
+  "typescript": {
+    "source": "awesome-cursor-rules/1000-typescript.md",
+    "rules": [
+      "Préférer ESM et import plutôt que require/CJS.",
+      "Éviter any ; utiliser unknown, génériques ou types précis.",
+      "Nettoyer variables/expressions inutilisées.",
+      "Utiliser as const pour typer exactement les objets/tuples.",
+      "Utiliser ?? plutôt que || pour les valeurs nullish.",
+      "Gérer les promesses via await ou .then ; pas d’oubli d’await.",
+      "Lever des Error, pas des chaînes/objets bruts.",
+      "Éviter les non-null assertions (!).",
+      "Pas d’eval/d’exécution dynamique.",
+      "Limiter les annotations redondantes ; préférer l’inférence.",
+      "Props immuables marquées readonly quand pertinent."
+    ]
+  },
+  "react": {
+    "source": "awesome-cursor-rules/2000-react.md",
+    "rules": [
+      "\"use client\" uniquement pour les composants interactifs ; sinon server.",
+      "Imports explicites, pas import * as React.",
+      "Pas de && pour le rendu conditionnel ; utiliser condition ? <El /> : null.",
+      "Destructurer props/state, props booléennes correctes.",
+      "forwardRef déprécié : passer ref comme prop (React 19).",
+      "Pas de dangerouslySetInnerHTML ni de manipulation DOM directe.",
+      "Clés stables (pas d’index) et displayName sur composants complexes.",
+      "useEffect: nettoyer listeners/timers ; éviter setState sans garde.",
+      "Hooks au top-level, deps stables pour useCallback/useMemo.",
+      "Pas de composants définis dans un autre composant."
+    ]
+  },
+  "nextjs": {
+    "source": "awesome-cursor-rules/2001-nextjs.md",
+    "rules": [
+      "Next 15 App Router : React 19 requis.",
+      "Par défaut, layout/page en server components ; client uniquement pour l’état/interaction.",
+      "Navigation via <Link>; <a> proscrits pour la nav interne.",
+      "Préférer server actions aux appels API côté client.",
+      "Fournir loading.tsx + Suspense pour le data fetching.",
+      "Respecter runtime Edge (pas d’API Node dans middleware).",
+      "Async cookies/headers/params sont des Promises → await/use().",
+      "Route handlers non cachés par défaut ; définir cache si besoin."
+    ]
+  },
+  "tailwind": {
+    "source": "awesome-cursor-rules/2002-tailwindcss.md",
+    "rules": [
+      "Utiliser des espacements cohérents (p-4, m-2, space-y-4...).",
+      "Combiner les classes conditionnelles via cn().",
+      "Limiter aux couleurs définies dans globals.css.",
+      "Assurer le support dark mode (.dark:).",
+      "Éviter le style inline ; préférer les utilitaires.",
+      "Aligner avec les changements Tailwind v4 (config dans globals.css, utilitaires renommés)."
+    ]
+  },
+  "shadcn": {
+    "source": "awesome-cursor-rules/2003-shadcn-ui.md",
+    "rules": [
+      "Importer les primitives depuis ~/ui/primitives et composants app depuis ~/ui/components.",
+      "Respecter la nomenclature Shadcn et l’usage des variants (buttonVariants, cn).",
+      "Utiliser Button uniquement pour déclencher une action ; styliser Link via variants.",
+      "S’appuyer sur la bibliothèque de primitives Shadcn pour la cohérence UI."
+    ]
+  },
+  "a11y": {
+    "source": "awesome-cursor-rules/004-accessibility.md",
+    "rules": [
+      "Navigation clavier avec focus visible.",
+      "HTML sémantique (titres, listes, landmarks).",
+      "ARIA/roles quand nécessaire ; labels ou aria-label sur les champs.",
+      "Contraste conforme WCAG pour texte/éléments interactifs.",
+      "Skip links / landmarks pour structurer la page.",
+      "Regrouper les champs connexes (fieldset) si pertinent."
+    ]
+  },
+  "vue": {
+    "source": "cursor-mdc-rules/vue.mdc",
+    "rules": [
+      "Privilégier la Composition API et <script setup> pour les composants.",
+      "Props typées, valeurs par défaut déclarées, pas de mutation directe des props.",
+      "Utiliser computed pour la dérivation, watch avec garde pour effets ciblés.",
+      "Structurer en composants petits et réutilisables ; slots pour la composition.",
+      "Routing via Vue Router, code-splitting par routes.",
+      "Tests de composants (Vitest/Cypress) sur les parcours critiques."
+    ]
+  },
+  "svelte": {
+    "source": "cursor-mdc-rules/svelte.mdc",
+    "rules": [
+      "Utiliser les stores pour le partage d’état, éviter les globals.",
+      "Préférer les derived stores pour la logique dérivée.",
+      "Limiter le nombre de reactive statements et les garder simples.",
+      "Découper les composants, passer des props typées, éviter les mutations implicites.",
+      "Accessibilité: labels, roles, focus management.",
+      "Tests UI/e2e sur les flux critiques."
+    ]
+  },
+  "angular": {
+    "source": "awesome-cursorrules/rules/angular-typescript-cursorrules-prompt-file",
+    "rules": [
+      "Modules/standalone components bien structurés, lazy loading des features.",
+      "Services pour la logique métier, éviter la logique lourde dans les composants.",
+      "RxJS: subscriptions gérées (takeUntil, async pipe), pas de fuites.",
+      "Formulaires: Reactive Forms privilégiés, validations et messages d’erreur clairs.",
+      "ChangeDetection OnPush et trackBy pour les listes.",
+      "Tests unitaires sur services/pipes, tests de composants avec TestBed."
+    ]
+  },
+  "react-native": {
+    "source": "awesome-cursorrules/rules/react-native-expo-cursorrules-prompt-file",
+    "rules": [
+      "Composants fonctionnels, hooks, éviter le state global non maîtrisé.",
+      "Navigation via react-navigation ; gérer les deep links.",
+      "Performances: FlatList optimisée (keyExtractor, getItemLayout si possible), éviter les rerenders inutiles (memo, callbacks stables).",
+      "Gestion des permissions et du réseau/offline ; erreurs affichées à l’utilisateur.",
+      "Styles cohérents (StyleSheet ou tailwind RN), pas de styles inline lourds.",
+      "Tests sur composants critiques et flows e2e (Detox/Expo Router si applicable)."
+    ]
+  },
+  "cypress": {
+    "source": "awesome-cursorrules/rules/cypress-e2e-testing-cursorrules-prompt-file",
+    "rules": [
+      "Tests e2e déterministes : données fixées/seed, cleanup par scénario.",
+      "Selecteurs stables (data-testid), pas de couplage au style.",
+      "Attendre sur les états réseau plutôt que des timeouts arbitraires.",
+      "Isoler les specs, paralléliser quand possible, reporter clairement les erreurs.",
+      "Couvrir les parcours critiques (auth, paiement, création) et les erreurs."
+    ]
+  },
+  "playwright": {
+    "source": "awesome-cursorrules/rules/playwright-e2e-testing-cursorrules-prompt-file",
+    "rules": [
+      "Fixtures partagées pour auth/données communes, tests idempotents.",
+      "Locators robustes, pas de sélecteurs CSS fragiles.",
+      "Tracer/vidéo/screenshots activables pour débogage CI.",
+      "Limiter la flakiness: attentes explicites sur états/texte/réseau.",
+      "Rapports structurés et parallélisme maîtrisé."
+    ]
+  },
+  "vitest": {
+    "source": "awesome-cursorrules/rules/vitest-unit-testing-cursorrules-prompt-file",
+    "rules": [
+      "Tests unitaires ciblés, arrange-act-assert clair.",
+      "Mocks limités, préférer la vraie logique pour éviter les faux positifs.",
+      "Snapshots parcimonieux, préférer des assertions explicites.",
+      "Couverture sur modules critiques, exécuter en CI systématiquement."
+    ]
+  },
+  "node-express": {
+    "source": "cursor-mdc-rules/node-express.mdc",
+    "rules": [
+      "Validation d’entrée (schema) sur toutes les routes.",
+      "Gestion d’erreurs centralisée (middleware), codes HTTP cohérents.",
+      "Logs structurés sans données sensibles ; corrélation des requêtes.",
+      "Sécurité: headers (helmet), rate limiting, pas d’eval, pas de secret en dur.",
+      "Tests (unitaires + e2e) sur les endpoints critiques."
+    ]
+  },
+  "fastapi": {
+    "source": "cursor-mdc-rules/fastapi.mdc",
+    "rules": [
+      "Pydantic pour la validation ; typer toutes les routes.",
+      "Séparation router/services/repo ; dépendances injectées.",
+      "Auth et sécurité (OAuth2/JWT), CORS maîtrisé.",
+      "Logs structurés, middlewares d’erreur.",
+      "Tests (pytest) sur endpoints, fixtures isolées."
+    ]
+  },
+  "python": {
+    "source": "cursor-mdc-rules/python.mdc",
+    "rules": [
+      "Respect PEP8/PEP20 ; typer (typing) autant que possible.",
+      "Virtualenv/poetry/pip-tools ; pas de dépendances globales.",
+      "Gestion d’erreurs explicite, pas de bare except.",
+      "Tests pytest, données déterministes, coverage sur modules critiques."
+    ]
+  },
+  "rails": {
+    "source": "awesome-cursorrules/rules/rails-cursorrules-prompt-file/rails-basics.mdx",
+    "rules": [
+      "Rails 8 : utiliser bin/dev, surveiller les logs en continu.",
+      "Infra moderne: Kamal 2, Solid Queue/Cache/Cable quand pertinent.",
+      "Contrôleurs REST fins, business dans des services/concerns.",
+      "DB: PostgreSQL, indexation, pooling, migrations propres.",
+      "Tests: Minitest/Capybara, fixtures déterministes, coverage sur modèles/contrôleurs.",
+      "Sécurité: params.expect(), authz, rate limiting, dépendances à jour."
+    ]
+  },
+  "laravel": {
+    "source": "awesome-cursorrules/rules/laravel-php-83-cursorrules-prompt-file",
+    "rules": [
+      "PHP 8.3+, suivre conventions Laravel.",
+      "Nommer : fichiers kebab-case, classes PascalCase, méthodes camelCase, variables snake_case, constantes SCREAMING_SNAKE_CASE.",
+      "Utiliser spatie/laravel-package-tools en base, Pint pour le style.",
+      "Helpers préférés aux facades quand possible.",
+      "Docblocks/types pour la DX, tests et documentation par défaut."
+    ]
+  },
+  "php": {
+    "source": "awesome-cursorrules/rules/laravel-php-83-cursorrules-prompt-file",
+    "rules": [
+      "PHP 8.3+, typage strict recommandé.",
+      "Pas de variables globales ; dépendances injectées.",
+      "Validation des entrées, gestion d’erreurs structurée.",
+      "Tests unitaires et d’intégration sur les services critiques."
+    ]
+  },
+  "ruby": {
+    "source": "awesome-cursorrules/rules/rails-cursorrules-prompt-file/rails-basics.mdx",
+    "rules": [
+      "Respect des conventions Ruby/Rails (naming, SRP).",
+      "Services pour la logique métier, controllers fins.",
+      "Tests (Minitest/RSpec) et sécurité (OWASP)."
+    ]
+  },
+  "aws": {
+    "source": "synthetic",
+    "rules": [
+      "IAM: moindre privilège, policies minimales, pas de clés en dur.",
+      "Réseau: VPC privés, SG restrictifs, pas de ressources publiques par défaut.",
+      "Chiffrement at-rest/in-transit (S3, RDS, EBS, KMS).",
+      "Observabilité: CloudWatch logs/metrics/alerts, traces si possible.",
+      "Backups & DR: snapshots/versions, tests de restauration.",
+      "Coûts: tags obligatoires, budgets/alerts, révisions régulières."
+    ]
+  },
+  "terraform": {
+    "source": "mdc-rules/terraform.mdc",
+    "rules": [
+      "State distant + locking (S3+Dynamo ou équivalent), chiffré/versionné.",
+      "Structure modules réutilisables, variables/outputs dédiés, pas de hardcode.",
+      "Lint/validate (fmt, validate, TFLint) et tests (terratest) en CI.",
+      "Pin des versions providers/modules, imports maîtrisés.",
+      "Tags cohérents (Name/Environment/Owner/CostCenter).",
+      "Sécurité: pas de secrets en clair, policies as code (OPA/Sentinel)."
+    ]
+  },
+  "terragrunt": {
+    "source": "synthetic",
+    "rules": [
+      "Hiérarchie live/ env avec DRY via terragrunt.hcl (includes/locals).",
+      "Gestion centralisée du state et des backends par env/stacks.",
+      "Inputs harmonisés, pas de duplication de modules ; préférer les generate/locals.",
+      "Déploiement par couches (network, data, apps) avec dépendances explicites.",
+      "CI: validate/plan/apply par env, relectures avant apply, verrouillage des versions.",
+      "Secrets via SSM/Secrets Manager, jamais en clair dans HCL."
+    ]
+  },
+  "kubernetes": {
+    "source": "awesome-cursorrules/rules/kubernetes-mkdocs-documentation-cursorrules-prompt",
+    "rules": [
+      "Manifests déclaratifs, éviter le mutable in-cluster ; préférer Kustomize/Helm selon besoin.",
+      "Namespaces par domaine/équipe, RBAC strict, PSP/OPA/Gatekeeper si dispo.",
+      "Réseau: NetworkPolicies par défaut, ingress contrôlé, pas de services publics involontaires.",
+      "Ressources: requests/limits, probes liveness/readiness/startup, autoscaling mesuré.",
+      "Sécurité: images minces, signatures/scans, secrets hors manifests (Vault/Secrets Manager).",
+      "Observabilité: logs/metrics/traces (Prom/Grafana/Tempo), alertes sur SLOs."
+    ]
+  },
+  "go": {
+    "source": "awesome-cursorrules/rules/go-backend-scalability-cursorrules-prompt-file",
+    "rules": [
+      "Modules Go, versions pin ; pas de dépendances non utilisées.",
+      "Gestion d’erreurs explicite, pas de panics en flux normal.",
+      "Context partout pour IO ; timeouts et cancellations.",
+      "Logs structurés, pas de données sensibles.",
+      "Tests unitaires/table-driven, benchmarks sur chemins critiques."
+    ]
+  },
+  "fastapi-python-backend": {
+    "source": "cursor-mdc-rules/python-fastapi-best-practices-cursorrules-prompt-file",
+    "rules": [
+      "Schemas Pydantic pour entrées/sorties, validation stricte.",
+      "Routers modulaires, dépendances injectées pour services/repos.",
+      "Sécurité: OAuth2/JWT, CORS maîtrisé, rate limiting si besoin.",
+      "Tests pytest (e2e avec TestClient), fixtures isolées."
+    ]
+  },
+  "symfony": {
+    "source": "synthetic",
+    "rules": [
+      "Symfony 6/7, autowiring/autoconfigure, services déclarés clairement.",
+      "DDD léger: contrôleurs fins, logique métier dans services/handlers.",
+      "Form/Validator pour la validation, Serializer pour I/O.",
+      "Config par env, pas de secrets en dur (dotenv + vault/SSM).",
+      "Tests PHPUnit (unit/intégration), fixtures déterministes.",
+      "Security: firewalls/providers/roles, rate limiting, CSRF pour formulaires."
+    ]
+  }
+  }
+}
+
