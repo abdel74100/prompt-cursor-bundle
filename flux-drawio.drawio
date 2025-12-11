@@ -1,0 +1,49 @@
+<mxfile host="65bd71144e">
+    <diagram id="n89efK57-2kMubvo4J5K" name="Page-1">
+        <mxGraphModel dx="1560" dy="1085" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2339" pageHeight="3300" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="start" value="pcb generate (interactive)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#333333;" parent="1" vertex="1">
+                    <mxGeometry x="870" y="110" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="choiceSimple" value="Choix 1: Simple&#10;(pas d’agents)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#333333;" parent="1" vertex="1">
+                    <mxGeometry x="550" y="230" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="choiceComplex" value="Choix 2: Complex&#10;(agents auto-activés)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;" parent="1" vertex="1">
+                    <mxGeometry x="1070" y="230" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="simple" value="generateSimple()&#10;- lit idea.md&#10;- génère prompt .prompt-{prov}/&#10;- produit docs:&#10;  project-request, ai-rules, spec,&#10;  implementation-plan" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="510" y="330" width="260" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="complex" value="generateComplex()&#10;- génère base (Simple)&#10;- parse implementation-plan&#10;- crée workflow/&#10;  (code-run.md, Instructions/stepX.md)" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1030" y="330" width="260" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="agents" value="generateAgents()&#10;- agents.json&#10;- rules par agent&#10;- templates run/&#10;- tasks-map.json" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1050" y="490" width="220" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="mapping" value="mapTasksToAgents()&#10;- lit Instructions&#10;- détecte keywords&#10;- map tasks→agents" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1060" y="660" width="220" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" style="fontColor=#333333;" parent="1" source="start" target="choiceSimple" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" style="fontColor=#333333;" parent="1" source="start" target="choiceComplex" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" parent="1" source="choiceSimple" target="simple" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e4" parent="1" source="choiceComplex" target="complex" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" parent="1" source="complex" target="agents" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e6" parent="1" source="agents" target="mapping" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
