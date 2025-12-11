@@ -34,8 +34,8 @@ function ensureDirectoryExists(dirPath) {
 }
 
 async function resolveProjectMode(options) {
-  if (options.simple && options.complex) return 'complex';
   if (options.simple) return 'simple';
+  if (options.simple && options.complex) return 'simple';
   if (options.complex) return 'complex';
 
   const answer = await inquirer.prompt([{
