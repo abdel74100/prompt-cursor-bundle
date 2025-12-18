@@ -1,571 +1,316 @@
-# 📖 Guide Complet - Prompt Cursor Bundle (Multi-AI)
+# Guide
 
-> **De l'idée au projet structuré en 2 commandes !** 🚀
-
----
-
-## 🎯 Qu'est-ce que Prompt Cursor Bundle ?
-
-Un outil qui transforme votre idée en projet professionnel structuré, en utilisant votre assistant AI préféré (Cursor, Claude, Windsurf, Copilot) pour générer toute la documentation nécessaire.
-
-### 🌟 Le Workflow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  📝 Votre Idée (idea.md)                                    │
-│  "Je veux créer une app de todo list avec React"            │
-└────────────────┬────────────────────────────────────────────┘
-                 │
-                 │ prompt-cursor generate
-                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│  🎯 UN Prompt Intelligent (.prompt-{provider}/prompts/)     │
-│  Contient toutes les instructions pour votre AI             │
-└────────────────┬────────────────────────────────────────────┘
-                 │
-                 │ Copier/Coller dans votre AI assistant
-                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│  🤖 Votre AI génère TOUT en 1 conversation                  │
-│  • project-request.md (vision métier)                       │
-│  • ai-rules.md → copié vers le bon fichier de règles        │
-│  • spec.md (architecture technique)                         │
-│  • implementation-plan.md (roadmap)                         │
-└────────────────┬────────────────────────────────────────────┘
-                 │
-                 │ prompt-cursor build
-                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│  📊 Workflow Intelligent Généré                             │
-│  • .prompt-{provider}/workflow/code-run.md                  │
-│  • .prompt-{provider}/workflow/Instructions/                │
-└────────────────┬────────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│  🎉 Projet Prêt ! Commencez le développement                │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🚀 Démarrage Rapide (2 minutes)
-
-### 1️⃣ Créez votre idée
-
-```bash
-cat > idea.md << 'EOF'
-# Application Todo List
-
-Une app web moderne avec:
-- Ajout/suppression de tâches
-- Filtres (toutes, actives, complétées)
-- Sauvegarde locale
-- Interface moderne avec animations
-
-Stack: React + TypeScript + TailwindCSS
-EOF
-```
-
-### 2️⃣ Générez le prompt intelligent
-
-```bash
-prompt-cursor generate -i idea.md -o ./todo-app
-# ou
-pcb gen -i idea.md -o ./todo-app
-```
-
-**Résultat :** Un fichier `.prompt-{provider}/prompts/prompt-generate.md` qui contient UN prompt optimisé
-
-### 3️⃣ Utilisez dans votre AI assistant
-
-1. Ouvrez `./todo-app/.prompt-{provider}/prompts/prompt-generate.md`
-2. Copiez le contenu entre 🚀 START et 🏁 END
-3. Collez dans votre assistant AI (Cursor, Claude, Windsurf, Copilot)
-4. Sauvegardez les 4 fichiers dans `.prompt-{provider}/docs/`:
-   - `project-request.md`
-   - `ai-rules.md`
-   - `spec.md`
-   - `implementation-plan.md`
-
-### 4️⃣ Build intelligent
-
-```bash
-cd ./todo-app
-prompcore build
-```
-
-**✅ C'est tout !** Votre projet est structuré et prêt.
-
----
-
-## 📚 Exemple Complet : Application Météo
-
-### 🎬 Étape 1 : L'idée
-
-```markdown
-# Weather Suggest
-
-Application météo moderne avec:
-- Recherche par ville/pays
-- Animations selon la météo (☀️ 🌧️ ❄️)
-- Prévisions 5 jours
-- Mode sombre
-
-Stack: React + Vite + Framer Motion
-```
-
-### 🚀 Étape 2 : Generate
-
-```bash
-prompt-cursor generate -i weather-idea.md -o ./weather-app
-```
-
-**Ce qui se passe :**
-
-```
-📝 idea.md
-    │
-    ├─→ Lit votre idée
-    ├─→ Applique un template intelligent
-    └─→ Génère prompt-generate.md
-```
-
-### 🤖 Étape 3 : Votre AI assistant
-
-**Dans votre assistant AI, après avoir collé le prompt :**
-
-```
-🤖 AI: "Je vais créer les 4 fichiers de documentation..."
-
-=== FILE: project-request.md ===
-# Weather Suggest - Project Request
+Complete guide for Prompt Cursor Bundle.
 
 ## Overview
-Modern weather application with real-time data...
 
-## Target Users
-- Travelers planning trips
-- Daily commuters...
+Prompt Cursor Bundle transforms your project idea into a structured development workflow by:
 
-=== FILE: ai-rules.md ===
-# Technology Stack
-- React 18.3
-- Vite 5.4
-- TypeScript 5.6...
+1. Generating an intelligent prompt for your AI assistant
+2. Parsing the AI-generated plan into actionable steps
+3. Providing a task management system with specialized agents
 
-[Continue avec spec.md et implementation-plan.md]
+## Workflow Diagram
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  idea.md                                                      │
+│  "Todo app with React + TypeScript"                          │
+└─────────────────────────┬────────────────────────────────────┘
+                          │ prompt-cursor generate
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│  .ai/prompts/prompt-generate.md                              │
+│  Intelligent prompt with compatibility checks                │
+└─────────────────────────┬────────────────────────────────────┘
+                          │ Copy to AI assistant
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│  AI generates 4 files in .ai/docs/                           │
+│  • project-request.md  (what to build)                       │
+│  • ai-rules.md         (coding standards)                    │
+│  • spec.md             (architecture)                        │
+│  • implementation-plan.md (roadmap)                          │
+└─────────────────────────┬────────────────────────────────────┘
+                          │ prompt-cursor build
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Workflow generated                                          │
+│  • .ai/workflow.md     (overview)                            │
+│  • .ai/steps/          (step-1.md, step-2.md...)            │
+│  • .ai/tasks.json      (machine-readable)                    │
+│  • .ai/rules/          (agent rules)                         │
+└─────────────────────────┬────────────────────────────────────┘
+                          │ prompt-cursor agents:next
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Development loop                                            │
+│  next → run → complete → repeat                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### 🔨 Étape 4 : Build
+## Step-by-Step Usage
+
+### 1. Create Your Idea
+
+Create a markdown file describing your project:
+
+```markdown
+# Weather App
+
+Features:
+- Search by city
+- 5-day forecast
+- Weather animations
+- Dark mode
+
+Stack: React + Vite + TailwindCSS + OpenWeather API
+```
+
+### 2. Generate the Prompt
 
 ```bash
-prompcore build
+prompt-cursor generate -i idea.md -o ./weather-app
 ```
 
-**Résultat du parsing intelligent :**
+This creates `.ai/prompts/prompt-generate.md` containing:
+- Your idea
+- Compatible package versions
+- Instructions for the AI
 
+### 3. Use Your AI Assistant
+
+1. Open `.ai/prompts/prompt-generate.md`
+2. Copy content between `🚀 START` and `🏁 END`
+3. Paste into your AI assistant (Cursor, Claude, etc.)
+4. Save the 4 generated files in `.ai/docs/`
+
+### 4. Build the Workflow
+
+```bash
+cd ./weather-app
+prompt-cursor build
+```
+
+Output:
 ```
 📖 Parsing implementation plan...
-✓ Found 15 steps in plan
-✓ Grouped into 5 development phases
+✓ Found 12 steps in plan
+✓ Complexity: complex (non-linear dependencies)
 
-🎨 Generating code-run.md...
-✓ Phase 1: Project Setup (3 tasks)
-✓ Phase 2: Core Features (4 tasks)
-✓ Phase 3: Weather Display (3 tasks)
-✓ Phase 4: Animations (3 tasks)
-✓ Phase 5: Testing & Deploy (2 tasks)
+🎨 Generating workflow...
+✓ workflow.md created
+✓ 12 step files created
+✓ tasks.json created
+
+🤖 Generating agent rules...
+✓ Agent rules generated
+  Modules: frontend, backend, infra
 ```
 
----
-
-## 📊 Comprendre les Fichiers Générés
-
-### Vue d'ensemble
-
-```
-mon-projet/
-├── 📁 .prompt-{provider}/     ← Dossier dédié (cursor, claude, windsurf, copilot)
-│   ├── prompts/
-│   │   └── prompt-generate.md ← Généré par 'generate'
-│   ├── docs/
-│   │   ├── project-request.md ← Généré par votre AI (QUOI)
-│   │   ├── ai-rules.md        ← Généré par votre AI (COMMENT)
-│   │   ├── spec.md            ← Généré par votre AI (ARCHITECTURE)
-│   │   └── implementation-plan.md ← Généré par votre AI (QUAND)
-│   └── workflow/
-│       ├── code-run.md        ← Généré par 'build' (SUIVI)
-│       └── Instructions/      ← Généré par 'build' (DÉTAILS)
-├── .cursorrules               ← Ou CLAUDE.md, .windsurfrules, .github/copilot-instructions.md
-└── src/                       ← Votre code
-```
-
-### Rôle de chaque fichier
-
-| Fichier | Rôle | Contient | Qui l'utilise |
-|---------|------|----------|---------------|
-| **project-request.md** | Vision métier | Objectifs, fonctionnalités, public | Product Owner |
-| **ai-rules.md** → règles AI | Standards code | Stack, conventions, patterns | Développeurs |
-| **spec.md** | Architecture | Schémas, API, DB, sécurité | Architecte |
-| **implementation-plan.md** | Roadmap | Étapes, dépendances | Chef de projet |
-| **code-run.md** | Suivi | TODOs, tests, progression | Scrum Master |
-| **Instructions/** | Guides | Tâches détaillées par étape | Développeurs |
-
----
-
-## 📊 Dashboard de Progression
-
-### Commande context
+### 5. Development Loop
 
 ```bash
-prompt-cursor context
+# Check status
+prompt-cursor agents:status
+
+# Get next task
+prompt-cursor agents:next --copy
+
+# Mark as complete
+prompt-cursor agents:complete -s 1
 ```
 
-**Affichage :**
+## Agent Commands
+
+### `agents:status`
+
+Shows overall progress and ready tasks:
 
 ```
-📊 CLI Context & Project Status
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Project Status: Weather App
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📋 Project Information:
-  Name: project name
-  AI Provider: Cursor
-  
-🔄 Workflow Status:
-  Type: ⭐ Generate (Recommended)
-  Current Phase: development
+Progress: ██████░░░░░░░░░░ 35% (4/12)
 
-📈 Progress:
-  1. Prompt Generation: ✅
-  2. AI Files: ✅
-  3. Build Process: ✅
-  4. Development: ████░░░░░░░░ 35%
+Ready tasks:
+  → Step 5: API Integration (backend)
+  → Step 6: Weather Display (frontend)
 
-📁 File Status:
-  ✅ prompt-generate.md
-  ✅ project-request.md
-  ✅ ai-rules.md → .cursorrules
-  ✅ spec.md
-  ✅ implementation-plan.md
-  ✅ code-run.md
-  ✅ Instructions/
-
-💡 Next Steps:
-  ✅ Ready for development! Follow code-run.md
+Blocked:
+  ⏳ Step 7: Animations (depends on 5, 6)
 ```
 
----
+### `agents:next`
 
-## 🛠️ Guide d'Implémentation Pratique
-
-### Comment utiliser les fichiers générés pour développer
-
-Une fois que vous avez tous vos fichiers, voici **exactement** comment procéder :
-
-### 📂 Fichiers à utiliser pour développer
-
-```
-✅ À UTILISER                    ❌ NE PAS UTILISER
-─────────────                    ──────────────────
-Fichier de règles AI             implementation-plan.md (trop détaillé)
-Instructions/instructions-stepX  code-run.md (juste pour votre suivi)
-spec.md (au début seulement)     prompt-generate.md (déjà utilisé)
-```
-
-### 🎮 Exemple Concret : Implémenter l'Étape 1
-
-#### 1️⃣ Ouvrez votre projet dans Cursor
+Displays the next available task with full prompt:
 
 ```bash
-cd ./weather-suggest
-cursor .  # ou code . si vous utilisez Cursor comme VSCode
+prompt-cursor agents:next --copy  # Copy to clipboard
 ```
 
-#### 2️⃣ Dans le chat de votre AI, glissez les fichiers
-
+Output:
 ```
-1. Glissez votre fichier de règles (une seule fois au début)
-2. Glissez Instructions/instructions-step1.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Step 5: API Integration
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Agent: backend
+Module: api
+Dependencies: Step 3, Step 4
+
+📋 Tasks:
+- [ ] Create API service
+- [ ] Add error handling
+- [ ] Write tests
+
+📎 Files: .ai/steps/step-5.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-#### 3️⃣ Donnez cette instruction à votre AI
+### `agents:run -s <N>`
 
-```
-En respectant les conventions définies dans le fichier de règles, 
-implémente les 3 tâches de l'étape 1 :
+Generate prompt for a specific step:
 
-1. Initialize Vite + React + TypeScript project
-2. Set up TailwindCSS, Axios, Framer Motion
-3. Set up folder structure
-
-Commence par la première tâche.
-```
-
-#### 4️⃣ Votre AI va générer le code
-
-**Exemple de réponse :**
 ```bash
-# Je vais initialiser le projet Vite avec React et TypeScript
-
-npm create vite@latest . -- --template react-ts
+prompt-cursor agents:run -s 5 --copy
 ```
 
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+### `agents:complete -s <N>`
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 3000
-  }
-})
+Mark a step as completed and update dependencies:
+
+```bash
+prompt-cursor agents:complete -s 5
 ```
 
-#### 5️⃣ Validez et continuez
+## Complex Mode
 
-```
-✅ Task 1 complétée
-Maintenant implémente la Task 2 : configure TailwindCSS
-```
+For larger projects with multiple modules:
 
-### 📋 Workflow Étape par Étape
-
-```
-ÉTAPE 1 (Project Setup)
-├── 📎 Fichiers à donner: règles AI + instructions-step1.md
-├── 💬 "Implémente l'étape 1 avec les 3 tâches"
-├── ✅ Valider chaque tâche
-└── 📝 Cocher dans code-run.md
-
-ÉTAPE 2 (Core Features)  
-├── 📎 Fichiers: instructions-step2.md (règles déjà dans contexte)
-├── 💬 "Implémente l'étape 2"
-├── ✅ Tester les fonctionnalités
-└── 📝 Cocher dans code-run.md
-
-ÉTAPE 3...
+```bash
+prompt-cursor generate -i idea.md -o ./project --complex
 ```
 
-### 💡 Exemples de Prompts Efficaces
+### Available Modules
 
-**❌ Trop vague :**
-```
-Fais l'étape 1
-```
+| Module | Agent | Description |
+|--------|-------|-------------|
+| frontend | frontend | UI, components, pages |
+| backend | backend | Services, controllers |
+| api | backend | REST/GraphQL endpoints |
+| database | database | Schema, migrations |
+| infra | devops | CI/CD, Docker, cloud |
+| auth | backend | Authentication, JWT |
+| testing | qa | Unit, e2e tests |
+| mobile | mobile | React Native, Flutter |
 
-**✅ Précis et efficace :**
-```
-En suivant les conventions du fichier de règles et les tâches définies 
-dans instructions-step1.md, implémente le setup initial du projet.
-Commence par créer le projet Vite avec React et TypeScript.
-```
+### Dependency Management
 
-**✅ Pour continuer :**
-```
-La tâche 1 est terminée. Maintenant configure TailwindCSS 
-et les autres dépendances listées dans la tâche 2.
-```
+Steps can have non-linear dependencies:
 
-**✅ Pour débugger :**
-```
-J'ai cette erreur lors du npm install: [erreur].
-Comment la résoudre en respectant notre architecture?
-```
-
-### 🔄 Cycle de Développement
-
-```
-Pour chaque étape:
-┌─────────────────────────┐
-│ 1. Lire code-run.md     │ ← Voir quelle étape faire
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ 2. Ouvrir Instructions/ │ ← Voir les tâches détaillées
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ 3. Donner à votre AI    │ ← règles AI + instructions
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ 4. Implémenter          │ ← L'AI génère le code
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ 5. Tester & Valider     │ ← Vérifier que ça marche
-└───────────┬─────────────┘
-            ▼
-┌─────────────────────────┐
-│ 6. Cocher dans code-run │ ← Marquer comme fait
-└─────────────────────────┘
-```
-
-### ⚠️ Erreurs Courantes à Éviter
-
-| Erreur | Conséquence | Solution |
-|--------|-------------|----------|
-| Donner tous les fichiers d'un coup | L'AI est confus | Donner seulement l'étape courante |
-| Sauter des étapes | Dépendances manquantes | Suivre l'ordre de code-run.md |
-| Ignorer les règles AI | Code incohérent | Toujours les inclure au début |
-| Donner implementation-plan.md | Trop de détails | Utiliser Instructions/ à la place |
-
----
-
-## 🔧 Fonctionnalités Avancées
-
-### ⚙️ Vérification Automatique de Compatibilité
-
-**Problème résolu** : Les erreurs de versions incompatibles (TailwindCSS v4 vs PostCSS, etc.)
-
-**Comment ça marche :**
-
-1. Le CLI **détecte votre stack** depuis `idea.md`
-2. **Injecte automatiquement** les versions compatibles dans le prompt
-3. **Ajoute les configurations** nécessaires (postcss.config.js, etc.)
-
-**Exemple** :
 ```markdown
-idea.md → "React + Vite + TailwindCSS"
-          ↓
-prompt généré inclut :
-- TailwindCSS ^3.4.0 (pas v4 qui casse PostCSS)
-- PostCSS ^8.4.31
-- Fichiers de config corrects
-- Notes de compatibilité
+Step 5: API Integration
+- **Depends on**: Step 2, Step 3
+- **Module**: backend
 ```
 
-**Stacks supportés avec versions testées :**
-- React + Vite + TailwindCSS
-- Next.js + TailwindCSS
-- Express.js + Node.js
-- Prisma + SQLite
-- JWT + bcrypt
-- React Native + Expo
-- NestJS
+The CLI automatically:
+- Tracks which steps are blocked
+- Identifies parallel-ready tasks
+- Updates status when dependencies complete
 
-### ✅ Commande `complete` - Tracking de Progression
+## File Reference
 
-**Utilisation :**
-```bash
-prompt-cursor complete           # Mode interactif
-pcb done --step 3             # Direct
+### Generated Files
+
+| File | Purpose |
+|------|---------|
+| `.ai/prompts/prompt-generate.md` | Initial prompt for AI |
+| `.ai/docs/project-request.md` | Business requirements |
+| `.ai/docs/ai-rules.md` | Coding standards |
+| `.ai/docs/spec.md` | Technical architecture |
+| `.ai/docs/implementation-plan.md` | Development roadmap |
+| `.ai/workflow.md` | Visual progress overview |
+| `.ai/steps/step-N.md` | Detailed task files |
+| `.ai/tasks.json` | Machine-readable task map |
+| `.ai/rules/*.md` | Agent-specific rules |
+
+### Rule Files by Provider
+
+| Provider | Main Rules | Scoped Rules |
+|----------|------------|--------------|
+| Cursor | `.cursorrules` | `.cursor/rules/*.mdc` |
+| Claude | `CLAUDE.md` | - |
+| Windsurf | `.windsurfrules` | - |
+| Copilot | `.github/copilot-instructions.md` | - |
+
+## Tips
+
+### Writing Good Ideas
+
+**Bad:**
+```
+A todo app
 ```
 
-**Effet :**
-- Marque l'étape actuelle comme terminée (✅)
-- Active automatiquement l'étape suivante (🟡)
-- Met à jour le contexte et les statistiques
-- Modifie `.prompt-{provider}/workflow/code-run.md`
-
-### 🧠 Parsing Intelligent
-
-Le CLI analyse automatiquement le plan de Cursor pour :
-
-```
-implementation-plan.md          code-run.md
-───────────────────            ──────────────
-15 étapes détaillées    →      5 phases groupées
-- [ ] Step 1: Setup...          ÉTAPE 1: Foundation
-- [ ] Step 2: Install...        (regroupe steps 1-3)
-- [ ] Step 3: Config...         
-                                ÉTAPE 2: Core Features
-- [ ] Step 4: API...            (regroupe steps 4-7)
-- [ ] Step 5: Search...         
-...                             ...
-```
-
-### 🎯 Tests Intelligents
-
-Les critères de test sont générés selon le contexte :
-
-```
-Task: "Initialize Vite + React project"
-→ Test: "Le projet est correctement initialisé avec tous les fichiers"
-
-Task: "Set up API integration"
-→ Test: "Les appels API fonctionnent et retournent les données attendues"
-
-Task: "Add animations"
-→ Test: "Les animations sont fluides et s'exécutent à 60 FPS"
-```
-
----
-
----
-
-## 💡 Tips & Astuces
-
-### 📝 Écrire une bonne idée
-
-**❌ Trop vague :**
-```
-Une app de todo
-```
-
-**✅ Bien détaillé :**
+**Good:**
 ```markdown
-# Todo App Moderne
+# Todo App
 
-Fonctionnalités:
-- CRUD complet des tâches
-- Filtres et recherche
-- Tags et catégories
-- Synchronisation cloud
-- Mode hors-ligne
+Features:
+- CRUD tasks with priorities
+- Filter by status, search
+- Tags and categories
+- Cloud sync with offline support
 
 Stack: React + TypeScript + Supabase
 UI: TailwindCSS + Framer Motion
 ```
 
-### 🚀 Optimiser votre AI assistant
+### Effective Prompts
 
-1. **Soyez précis** dans vos réponses
-2. **Donnez des exemples** quand possible
-3. **Validez** chaque fichier avant de sauvegarder
+When using step instructions with your AI:
 
-### 🔨 Personnaliser le build
+```
+Following the rules in .cursorrules and the tasks in .ai/steps/step-1.md,
+implement the project setup. Start with task 1.
+```
 
-Le build s'adapte automatiquement à différents formats :
-- Format français : `### Étape X:`
-- Format anglais : `- [ ] Step X:`
-- Format checkbox : `**Task**: description`
+### Development Cycle
 
----
+```
+1. prompt-cursor agents:next    # See what to do
+2. Copy prompt to AI            # Get implementation
+3. Review and apply code        # Validate changes
+4. prompt-cursor agents:complete # Mark done
+5. Repeat
+```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
-### "No response files found"
-→ Assurez-vous d'avoir sauvegardé les 4 fichiers générés par votre AI
+### Common Issues
 
-### "0 steps in plan"
-→ Vérifiez le format de `implementation-plan.md`
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| "No response files" | Files not saved | Save AI output in `.ai/docs/` |
+| "0 steps in plan" | Wrong format | Use `### Step X:` or `- [ ] Step X:` |
+| Steps not detected | Parsing failed | Check implementation-plan.md format |
+| Wrong module assigned | Auto-detection | Add `- **Module**: frontend` to step |
 
-### "Command not found"
-→ Exécutez `npm link` dans le dossier du CLI
+### Supported Plan Formats
 
----
+The parser recognizes these formats:
 
-## 🎉 Résumé
+```markdown
+### Step 1: Setup Project
+### Étape 1: Configuration
+#### Step 1: Initialize
+- [ ] Step 1: Create structure
+```
 
-**Le workflow ultra-simplifié en 4 étapes :**
+### Debug Mode
 
-1. 📝 **Idée** → Écrivez votre vision dans `idea.md`
-2. 🎯 **Generate** → `prompt-cursor generate` crée un prompt intelligent avec versions compatibles
-3. 🤖 **Votre AI** → Une seule conversation génère tous les fichiers
-4. 🔨 **Build** → `prompt-cursor build` parse et crée le workflow de développement
-
-**Bonus :**
-5. ✅ **Complete** → `prompt-cursor complete` marque vos étapes terminées automatiquement
-
-**Résultat :** Un projet professionnel, structuré, sans erreurs de compatibilité, compatible avec Cursor, Claude, Windsurf ou Copilot !
-
----
-
-<p align="center">
-  <b>Commencez maintenant :</b><br>
-  <code>prompt-cursor generate -i idea.md -o ./mon-projet</code>
-</p>
+```bash
+DEBUG=1 prompt-cursor build
+```
