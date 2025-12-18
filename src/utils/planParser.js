@@ -77,25 +77,28 @@ class PlanParser {
     const steps = [];
     
     // Try format 1: "### Étape X:" (French format)
-    const frenchRegex = /###\s+Étape\s+(\d+):\s+(.+?)(?=###|\n##|$)/gs;
+    const frenchRegex = /###\s+Étape\s+(\d+(?:\.\d+)?):\s+(.+?)(?=###|\n##|$)/gs;
     let match;
     
     while ((match = frenchRegex.exec(content)) !== null) {
-      const stepNumber = parseInt(match[1]);
+      const rawNumber = match[1].trim();
       const rawTitle = match[2].trim();
       const stepTitle = rawTitle.split('\n')[0].trim();
       const stepContent = match[0];
       
       const tasks = this.extractTasks(stepContent);
-      const dependencies = this.extractDependencies(stepContent, stepNumber);
+      const dependencies = this.extractDependencies(stepContent, rawNumber);
       
       steps.push({
-        number: stepNumber,
+        rawNumber,
+        number: steps.length + 1,
+        displayNumber: rawNumber,
         name: stepTitle,
         tasks: tasks,
         objective: this.extractObjective(stepContent),
         estimatedTime: this.extractEstimatedTime(stepContent, content),
-        dependsOn: dependencies.dependsOn,
+        dependsOnRaw: dependencies.dependsOnRaw,
+        dependsOn: [],
         parallel: dependencies.parallel,
         module: this.extractModule(stepContent),
         files: this.extractFiles(stepContent),
@@ -106,23 +109,26 @@ class PlanParser {
     
     // Try format 2: "#### Step X:" (English format with ####)
     if (steps.length === 0) {
-      const englishHeaderRegex = /####\s+Step\s+(\d+):\s+(.+?)\n([\s\S]*?)(?=####\s+Step|###\s+|##\s+|$)/gs;
+      const englishHeaderRegex = /####\s+Step\s+(\d+(?:\.\d+)?):\s+(.+?)\n([\s\S]*?)(?=####\s+Step|###\s+|##\s+|$)/gs;
       
       while ((match = englishHeaderRegex.exec(content)) !== null) {
-        const stepNumber = parseInt(match[1]);
+        const rawNumber = match[1].trim();
         const stepTitle = match[2].trim();
         const stepContent = match[3];
         
         const tasks = this.extractTasksFromStepFormat(stepContent);
-        const dependencies = this.extractDependencies(stepContent, stepNumber);
+        const dependencies = this.extractDependencies(stepContent, rawNumber);
         
         steps.push({
-          number: stepNumber,
+          rawNumber,
+          number: steps.length + 1,
+          displayNumber: rawNumber,
           name: stepTitle,
           tasks: tasks,
           objective: this.extractTaskDescription(stepContent) || stepTitle,
           estimatedTime: this.extractEstimatedTime(stepContent, content),
-          dependsOn: dependencies.dependsOn,
+          dependsOnRaw: dependencies.dependsOnRaw,
+          dependsOn: [],
           parallel: dependencies.parallel,
           module: this.extractModule(stepContent),
           files: this.extractFiles(stepContent),
@@ -134,23 +140,26 @@ class PlanParser {
     
     // Try format 3: "### Step X:" (English format with ###)
     if (steps.length === 0) {
-      const englishHeaderRegex2 = /###\s+Step\s+(\d+):\s+(.+?)\n([\s\S]*?)(?=###\s+Step|##\s+Phase|##\s+\w|$)/gs;
+      const englishHeaderRegex2 = /###\s+Step\s+(\d+(?:\.\d+)?):\s+(.+?)\n([\s\S]*?)(?=###\s+Step|##\s+Phase|##\s+\w|$)/gs;
       
       while ((match = englishHeaderRegex2.exec(content)) !== null) {
-        const stepNumber = parseInt(match[1]);
+        const rawNumber = match[1].trim();
         const stepTitle = match[2].trim();
         const stepContent = match[3];
         
         const tasks = this.extractTasksFromStepFormat(stepContent);
-        const dependencies = this.extractDependencies(stepContent, stepNumber);
+        const dependencies = this.extractDependencies(stepContent, rawNumber);
         
         steps.push({
-          number: stepNumber,
+          rawNumber,
+          number: steps.length + 1,
+          displayNumber: rawNumber,
           name: stepTitle,
           tasks: tasks,
           objective: this.extractTaskDescription(stepContent) || stepTitle,
           estimatedTime: this.extractEstimatedTime(stepContent, content),
-          dependsOn: dependencies.dependsOn,
+          dependsOnRaw: dependencies.dependsOnRaw,
+          dependsOn: [],
           parallel: dependencies.parallel,
           module: this.extractModule(stepContent),
           files: this.extractFiles(stepContent),
@@ -162,23 +171,26 @@ class PlanParser {
     
     // Try format 4: "- [ ] Step X:" (English checkbox format)
     if (steps.length === 0) {
-      const checkboxRegex = /-\s+\[\s*\]\s+Step\s+(\d+):\s+([^\n]+)([\s\S]*?)(?=\n-\s+\[\s*\]\s+Step|\n##\s+Phase|$)/g;
+      const checkboxRegex = /-\s+\[\s*\]\s+Step\s+(\d+(?:\.\d+)?):\s+([^\n]+)([\s\S]*?)(?=\n-\s+\[\s*\]\s+Step|\n##\s+Phase|$)/g;
       
       while ((match = checkboxRegex.exec(content)) !== null) {
-        const stepNumber = parseInt(match[1]);
+        const rawNumber = match[1].trim();
         const stepTitle = match[2].trim();
         const stepContent = match[0];
         
         const tasks = this.extractTasksFromCheckboxFormat(stepContent);
-        const dependencies = this.extractDependencies(stepContent, stepNumber);
+        const dependencies = this.extractDependencies(stepContent, rawNumber);
         
         steps.push({
-          number: stepNumber,
+          rawNumber,
+          number: steps.length + 1,
+          displayNumber: rawNumber,
           name: stepTitle,
           tasks: tasks,
           objective: tasks[0]?.description || stepTitle,
           estimatedTime: this.extractEstimatedTime(stepContent, content),
-          dependsOn: dependencies.dependsOn,
+          dependsOnRaw: dependencies.dependsOnRaw,
+          dependsOn: [],
           parallel: dependencies.parallel,
           module: this.extractModule(stepContent),
           files: this.extractFiles(stepContent),
@@ -187,6 +199,41 @@ class PlanParser {
         });
       }
     }
+    
+    // Map raw step numbers (1.1, 2.3…) to sequential integers for internal usage
+    const rawNumberMap = {};
+    steps.forEach((step, idx) => {
+      const seq = idx + 1;
+      step.number = seq;
+      if (step.rawNumber) {
+        rawNumberMap[step.rawNumber] = seq;
+        // Also map integer part if it matches
+        const intPart = step.rawNumber.split('.')[0];
+        if (intPart) {
+          rawNumberMap[intPart] = rawNumberMap[intPart] || seq;
+        }
+      } else {
+        rawNumberMap[String(seq)] = seq;
+      }
+    });
+    
+    // Convert raw dependencies to mapped integers
+    steps.forEach((step, idx) => {
+      const mappedDeps = (step.dependsOnRaw || []).map(rawDep => {
+        const cleaned = rawDep.trim();
+        if (rawNumberMap[cleaned] !== undefined) return rawNumberMap[cleaned];
+        const noLeadingZeros = cleaned.replace(/^0+/, '') || cleaned;
+        if (rawNumberMap[noLeadingZeros] !== undefined) return rawNumberMap[noLeadingZeros];
+        const asFloat = parseFloat(cleaned);
+        if (!Number.isNaN(asFloat) && rawNumberMap[String(asFloat)]) return rawNumberMap[String(asFloat)];
+        const asInt = parseInt(cleaned, 10);
+        if (!Number.isNaN(asInt) && rawNumberMap[String(asInt)]) return rawNumberMap[String(asInt)];
+        if (!Number.isNaN(asInt)) return asInt;
+        return null;
+      }).filter((n) => n !== null);
+      step.dependsOn = mappedDeps;
+      delete step.dependsOnRaw;
+    });
     
     // Only set linear dependencies if NO step has explicit dependencies
     const hasAnyExplicitDeps = steps.some(s => s.dependsOn && s.dependsOn.length > 0);
@@ -215,7 +262,7 @@ class PlanParser {
         const trimmed = line.trim();
         // Match "- `path/to/file`" or "- path/to/file:" patterns
         const fileMatch = trimmed.match(/^-\s*`?([^`:\n]+)`?\s*:?.*$/);
-        if (fileMatch && fileMatch[1].includes('/')) {
+        if (fileMatch) {
           files.push(fileMatch[1].trim());
         }
       }
@@ -226,7 +273,7 @@ class PlanParser {
     if (inlineFiles) {
       for (const f of inlineFiles) {
         const cleanFile = f.replace(/`/g, '');
-        if (!files.includes(cleanFile) && cleanFile.includes('/')) {
+        if (!files.includes(cleanFile)) {
           files.push(cleanFile);
         }
       }
@@ -317,7 +364,7 @@ class PlanParser {
    */
   static extractDependencies(content, stepNumber) {
     const result = {
-      dependsOn: [],
+      dependsOnRaw: [],
       parallel: false
     };
     
@@ -334,17 +381,17 @@ class PlanParser {
         return result;
       }
       
-      // Extract step numbers
-      const depNums = depStr.match(/\d+/g);
+      // Extract step numbers (keep raw to support decimals)
+      const depNums = depStr.match(/\d+(?:\.\d+)?/g);
       if (depNums) {
-        result.dependsOn = [...new Set(depNums.map(n => parseInt(n)))];
+        result.dependsOnRaw = [...new Set(depNums.map(n => n.trim()))];
         return result;
       }
     }
     
     // Format 2: "Depends on: Step 1, Step 2" or "Dépend de: Étape 1" (non-bold)
     const depMatch = content.match(/(?:depends?\s+on|dépend\s+de|requires?|nécessite|prérequis)\s*:\s*([^\n]+)/i);
-    if (depMatch && result.dependsOn.length === 0) {
+    if (depMatch && result.dependsOnRaw.length === 0) {
       const depStr = depMatch[1].toLowerCase();
       
       // Check for "none" or "aucune"
@@ -353,30 +400,30 @@ class PlanParser {
       }
       
       // Extract step numbers
-      const depNums = depStr.match(/\d+/g);
+      const depNums = depStr.match(/\d+(?:\.\d+)?/g);
       if (depNums) {
-        result.dependsOn = [...new Set(depNums.map(n => parseInt(n)))];
+        result.dependsOnRaw = [...new Set(depNums.map(n => n.trim()))];
       }
     }
     
     // Format 3: "Step Dependencies: Step 1 completed"
     const stepDepMatch = content.match(/step\s+dependencies?\s*:\s*([^\n]+)/i);
-    if (stepDepMatch && result.dependsOn.length === 0) {
+    if (stepDepMatch && result.dependsOnRaw.length === 0) {
       const depStr = stepDepMatch[1].toLowerCase();
       if (!depStr.includes('none') && !depStr.includes('aucun')) {
-        const depNums = depStr.match(/\d+/g);
+        const depNums = depStr.match(/\d+(?:\.\d+)?/g);
         if (depNums) {
-          result.dependsOn = [...new Set(depNums.map(n => parseInt(n)))];
+          result.dependsOnRaw = [...new Set(depNums.map(n => n.trim()))];
         }
       }
     }
     
     // Format 4: "After: Step 1 AND Step 2" (requires both)
     const afterMatch = content.match(/after\s*:\s*([^\n]+)/i);
-    if (afterMatch && result.dependsOn.length === 0) {
-      const depNums = afterMatch[1].match(/\d+/g);
+    if (afterMatch && result.dependsOnRaw.length === 0) {
+      const depNums = afterMatch[1].match(/\d+(?:\.\d+)?/g);
       if (depNums) {
-        result.dependsOn = [...new Set(depNums.map(n => parseInt(n)))];
+        result.dependsOnRaw = [...new Set(depNums.map(n => n.trim()))];
       }
     }
     
@@ -816,10 +863,14 @@ class PlanParser {
         number: step.number || (index + 1),
         name: step.name,
         objective: step.objective,
+        estimatedTime: step.estimatedTime,
         tasks: step.tasks,
         dependsOn: step.dependsOn || [],
         parallel: step.parallel || false,
-        module: step.module
+        module: step.module,
+        files: step.files || [],
+        userCommands: step.userCommands || [],
+        techDetails: step.techDetails || {}
       }));
     }
     
@@ -919,7 +970,14 @@ class PlanParser {
     const hasNonLinearDeps = steps.some(s => s.dependsOn && s.dependsOn.length > 1);
     const hasParallel = steps.some(s => s.parallel);
     const hasModules = steps.some(s => s.module);
-    const uniqueModules = [...new Set(steps.filter(s => s.module).map(s => s.module))];
+    const moduleValues = steps
+      .filter((s) => s.module)
+      .flatMap((s) =>
+        Array.isArray(s.module) ? s.module : [s.module]
+      )
+      .map((m) => m.toString().trim())
+      .filter(Boolean);
+    const uniqueModules = [...new Set(moduleValues)];
     
     let level = 'simple';
     if (numSteps > 10 || hasNonLinearDeps || hasParallel || uniqueModules.length > 2) {

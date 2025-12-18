@@ -4,6 +4,10 @@ const { Command } = require('commander');
 const chalk = require('chalk');
 const generateCommand = require('../src/commands/generate');
 const buildCommand = require('../src/commands/build');
+const agentsStatusCommand = require('../src/commands/agents-status');
+const agentsRunCommand = require('../src/commands/agents-run');
+const agentsNextCommand = require('../src/commands/agents-next');
+const agentsCompleteCommand = require('../src/commands/agents-complete');
 
 const program = new Command();
 const packageJson = require('../package.json');
@@ -31,11 +35,58 @@ program
 // Build command
 program
   .command('build')
-  .description('Generate intelligent code-run.md from saved responses')
+  .description('Generate workflow and step files from saved responses')
   .option('-o, --output <path>', 'Project directory', process.cwd())
-  .option('-c, --complex', '📦 Enable complex project mode')
+  .option('-c, --complex', '📦 Enable complex project mode (modules, dependencies)')
   .action(async (options) => {
     await buildCommand(options);
+  });
+
+// Agents status command
+program
+  .command('agents:status')
+  .alias('status')
+  .description('📊 Display task progression and ready tasks')
+  .option('-o, --output <path>', 'Project directory', process.cwd())
+  .option('-a, --all', 'Show all ready tasks (not just first 5)')
+  .option('-m, --modules', 'Show progress by module')
+  .option('--agents', 'Show progress by agent')
+  .action(async (options) => {
+    await agentsStatusCommand(options);
+  });
+
+// Agents run command
+program
+  .command('agents:run')
+  .alias('run')
+  .description('🚀 Generate and display prompt for a specific step')
+  .option('-o, --output <path>', 'Project directory', process.cwd())
+  .option('-s, --step <number>', 'Step number to run')
+  .option('-c, --copy', 'Copy prompt to clipboard')
+  .action(async (options) => {
+    await agentsRunCommand(options);
+  });
+
+// Agents next command
+program
+  .command('agents:next')
+  .alias('next')
+  .description('➡️ Display the next available step (first ready task)')
+  .option('-o, --output <path>', 'Project directory', process.cwd())
+  .option('-c, --copy', 'Copy prompt to clipboard')
+  .action(async (options) => {
+    await agentsNextCommand(options);
+  });
+
+// Agents complete command
+program
+  .command('agents:complete')
+  .alias('done')
+  .description('✅ Mark a step as completed')
+  .option('-o, --output <path>', 'Project directory', process.cwd())
+  .option('-s, --step <number>', 'Step number to complete')
+  .action(async (options) => {
+    await agentsCompleteCommand(options);
   });
 
 // Parse arguments

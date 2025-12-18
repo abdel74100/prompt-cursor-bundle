@@ -288,6 +288,5 @@
       "Security: firewalls/providers/roles, rate limiting, CSRF pour formulaires."
     ]
   }
-  }
 }
 

@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const chalk = require('chalk');
 const { getPromptDirectory } = require('./aiProviders');
@@ -713,37 +714,61 @@ class ModuleManager {
   }
 
   /**
-   * Save modules configuration
+   * Save modules configuration into unified config.json
    * @returns {Promise<void>}
    */
   async saveConfig() {
-    const configPath = path.join(this.projectDir, this.promptDir, 'modules-config.json');
-    const config = {
-      modules: Array.from(this.modules.entries()).map(([key, module]) => ({
-        key,
-        name: module.name,
-        steps: module.steps.map(s => s.number),
-        completedSteps: module.completedSteps,
-        progress: module.progress,
-        status: module.status
-      })),
-      lastUpdated: new Date().toISOString()
-    };
+    const configPath = path.join(this.projectDir, this.promptDir, 'config.json');
+    
+    // Load existing config or create new
+    let config = {};
+    try {
+      const existing = await fs.readFile(configPath, 'utf-8');
+      config = JSON.parse(existing);
+    } catch (e) {
+      // No existing config
+    }
+    
+    // Update modules section
+    config.modulesState = Array.from(this.modules.entries()).map(([key, module]) => ({
+      key,
+      name: module.name,
+      steps: module.steps.map(s => s.number),
+      completedSteps: module.completedSteps,
+      progress: module.progress,
+      status: module.status
+    }));
+    config.lastUpdated = new Date().toISOString();
 
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
   }
 
   /**
-   * Load modules configuration
+   * Load modules configuration from unified config.json
    * @returns {Promise<boolean>} Success
    */
   async loadConfig() {
     try {
-      const configPath = path.join(this.projectDir, this.promptDir, 'modules-config.json');
-      const content = await fs.readFile(configPath, 'utf-8');
-      const config = JSON.parse(content);
+      const configPath = path.join(this.projectDir, this.promptDir, 'config.json');
+      // Also check legacy path
+      const legacyPath = path.join(this.projectDir, this.promptDir, 'modules-config.json');
+      
+      let config;
+      let modulesData;
+      
+      if (fsSync.existsSync(configPath)) {
+        const content = await fs.readFile(configPath, 'utf-8');
+        config = JSON.parse(content);
+        modulesData = config.modulesState || [];
+      } else if (fsSync.existsSync(legacyPath)) {
+        const content = await fs.readFile(legacyPath, 'utf-8');
+        config = JSON.parse(content);
+        modulesData = config.modules || [];
+      } else {
+        return false;
+      }
 
-      for (const moduleConfig of config.modules) {
+      for (const moduleConfig of modulesData) {
         if (this.modules.has(moduleConfig.key)) {
           const module = this.modules.get(moduleConfig.key);
           module.completedSteps = moduleConfig.completedSteps || [];

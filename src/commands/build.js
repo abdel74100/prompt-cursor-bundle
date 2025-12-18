@@ -2,23 +2,94 @@ const chalk = require('chalk');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
-const { loadContext, saveContext, recordCommand, trackFile, updateWorkflowPhase } = require('../utils/contextTrackerV2');
 const CodeRunGenerator = require('../utils/codeRunGenerator');
+const WorkflowGenerator = require('../utils/workflowGenerator');
 const PlanParser = require('../utils/planParser');
 const { ensureDirectoryStructure, getFilePath, getDirs, detectProvider, DEFAULT_PROVIDER } = require('../utils/directoryManager');
 const { getProvider, getRulesPath, getRulesDir, getPromptDirectory } = require('../utils/aiProviders');
-const DependencyGraph = require('../utils/dependencyGraph');
 const MilestoneManager = require('../utils/milestoneManager');
 const ModuleManager = require('../utils/moduleManager');
 const SpecContext = require('../utils/specContext');
 const { generateAgentsArtifacts } = require('../utils/agentsGenerator');
 
+async function generateCursorMdcRules(outputDir) {
+  const cursorDir = path.join(outputDir, '.cursor', 'rules');
+  await fs.mkdir(cursorDir, { recursive: true });
+
+  const scopeMaps = [
+    {
+      source: '.ai/rules/frontend-rules.md',
+      target: 'frontend.mdc',
+      files: [
+        'apps/passenger-web/**',
+        'apps/driver-web/**',
+        'apps/admin-web/**',
+        'packages/ui/**'
+      ]
+    },
+    {
+      source: '.ai/rules/backend-rules.md',
+      target: 'backend.mdc',
+      files: ['apps/api/**', 'packages/api-client/**']
+    },
+    {
+      source: '.ai/rules/devops-rules.md',
+      target: 'devops.mdc',
+      files: ['infra/**', '.github/**', 'ops/**', 'Dockerfile', 'docker-compose.yml']
+    },
+    {
+      source: '.ai/rules/database-rules.md',
+      target: 'database.mdc',
+      files: ['prisma/**', 'packages/database/**']
+    },
+    {
+      source: '.ai/rules/qa-rules.md',
+      target: 'qa.mdc',
+      files: ['tests/**', 'e2e/**', 'cypress/**']
+    },
+    {
+      source: '.ai/rules/mobile-rules.md',
+      target: 'mobile.mdc',
+      files: ['apps/mobile/**', 'apps/*-mobile/**']
+    }
+  ];
+
+  let generalWritten = false;
+  for (const scope of scopeMaps) {
+    const absSource = path.join(outputDir, scope.source);
+    if (!fsSync.existsSync(absSource)) continue;
+    const content = await fs.readFile(absSource, 'utf-8');
+    const header = [
+      'files:',
+      ...scope.files.map((f) => `  - "${f}"`),
+      '---',
+      ''
+    ].join('\n');
+    await fs.writeFile(path.join(cursorDir, scope.target), `${header}${content.trim()}\n`, 'utf-8');
+    generalWritten = true;
+  }
+
+  const rootRulesPath = path.join(outputDir, '.cursorrules');
+  if (fsSync.existsSync(rootRulesPath)) {
+    const content = await fs.readFile(rootRulesPath, 'utf-8');
+    const header = ['files:', '  - "**/*"', '---', ''].join('\n');
+    await fs.writeFile(path.join(cursorDir, 'general.mdc'), `${header}${content.trim()}\n`, 'utf-8');
+    generalWritten = true;
+  }
+
+  if (generalWritten) {
+    console.log(chalk.green('✓ Generated Cursor MDC rules (.cursor/rules/)'));
+  } else {
+    console.log(chalk.gray('ℹ No MDC rules generated (sources missing)'));
+  }
+}
+
 /**
- * Build command - Generate intelligent code-run from saved responses
- * Now supports complex mode with modules, milestones, and dependencies
+ * Build command - Generate workflow and step files from saved responses
+ * Supports simple mode (basic) and complex mode (modules, dependencies)
  */
 async function buildCommand(options) {
-  console.log(chalk.blue.bold('\n🔨 Build - Generate Intelligent Project Files\n'));
+  console.log(chalk.blue.bold('\n🔨 Build - Generate Workflow & Steps\n'));
   console.log(chalk.gray('Scanning project directory for saved responses...\n'));
 
   try {
@@ -27,26 +98,28 @@ async function buildCommand(options) {
     // Auto-detect provider from existing directory or use default
     let aiProviderKey = await detectProvider(outputDir) || DEFAULT_PROVIDER;
     
-    // Load context (will use detected provider)
-    const context = await loadContext(outputDir, aiProviderKey);
-    
-    // Use provider from context if available
-    aiProviderKey = context.aiProvider || aiProviderKey;
+    // Use detected provider
     const provider = getProvider(aiProviderKey);
     const promptDir = getPromptDirectory(aiProviderKey);
     const dirs = getDirs(aiProviderKey);
     
-    // Detect complex mode from options or context
-    let complexMode = options.complex || context.complexMode || false;
-    let selectedModules = complexMode ? (context.modules || []) : [];
+    // Detect complex mode from options or config
+    let complexMode = options.complex || false;
+    let selectedModules = [];
+    let projectName = 'MyProject';
     
-    // Try to load project config
-    const configPath = path.join(outputDir, promptDir, 'project-config.json');
-    if (fsSync.existsSync(configPath)) {
+    // Try to load project config (new unified config.json or legacy project-config.json)
+    const configPath = path.join(outputDir, promptDir, 'config.json');
+    const legacyConfigPath = path.join(outputDir, promptDir, 'project-config.json');
+    const configFile = fsSync.existsSync(configPath) ? configPath : 
+                       fsSync.existsSync(legacyConfigPath) ? legacyConfigPath : null;
+    
+    if (configFile) {
       try {
-        const config = JSON.parse(fsSync.readFileSync(configPath, 'utf-8'));
+        const config = JSON.parse(fsSync.readFileSync(configFile, 'utf-8'));
         complexMode = complexMode || config.complexMode;
         selectedModules = selectedModules.length > 0 ? selectedModules : (config.modules || []);
+        projectName = config.projectName || projectName;
       } catch (e) {
         // Ignore config parsing errors
       }
@@ -113,7 +186,6 @@ async function buildCommand(options) {
     
     // Parse implementation plan
     let steps = [];
-    let projectName = context.projectName || 'MyProject';
     let milestones = null;
     let complexity = null;
     let projectContext = {};
@@ -191,57 +263,33 @@ async function buildCommand(options) {
       projectContext = {};
     }
     
-    // Generate code-run
-    console.log(chalk.cyan('\n🎨 Generating code-run.md...\n'));
+    // Generate workflow.md + steps/
+    console.log(chalk.cyan('\n🎨 Generating workflow.md + steps/...\n'));
     
-    const generatorOptions = {
-      projectName: projectName,
-      outputDir: outputDir,
-      steps: steps,
-      fileExtension: 'js',
-      language: 'javascript',
+    const workflowGenerator = new WorkflowGenerator({
+      projectName,
+      outputDir,
+      steps,
       aiProvider: aiProviderKey,
-      complexMode: complexMode,
+      complexMode,
       modules: selectedModules,
-      milestones: milestones,
-      autoGroupMilestones: true,
-      projectContext,
-    };
+      projectContext
+    });
     
-    const generator = new CodeRunGenerator(generatorOptions);
+    await workflowGenerator.generate();
     
-    await generator.generate();
-    
-    // Generate agents artifacts in complex mode
+    // Generate agent rules in complex mode
+    let agentSummary = null;
     if (complexMode) {
-      console.log(chalk.cyan('\n🤖 Génération des agents...\n'));
-      await generateAgentsArtifacts({
+      console.log(chalk.cyan('\n🤖 Génération des règles agents...\n'));
+      agentSummary = await generateAgentsArtifacts({
         outputDir,
         aiProvider: aiProviderKey,
         projectName,
         steps,
-        modules: selectedModules
+        modules: selectedModules,
+        skipRunPrompts: true
       });
-    }
-    
-    // Generate dependency graph visualization for complex mode
-    if (complexMode && steps.length > 0) {
-      console.log(chalk.cyan('\n🔗 Generating dependency graph...'));
-      
-      const depGraph = new DependencyGraph(steps);
-      depGraph.build();
-      
-      // Save dependency graph as markdown
-      const graphContent = generateDependencyGraphMarkdown(depGraph, steps);
-      const graphPath = path.join(outputDir, promptDir, 'workflow', 'dependency-graph.md');
-      await fs.writeFile(graphPath, graphContent, 'utf-8');
-      console.log(chalk.green(`✓ dependency-graph.md created`));
-      
-      // Show critical path
-      const criticalPath = depGraph.getCriticalPath();
-      if (criticalPath.length > 0) {
-        console.log(chalk.gray(`  Critical path: ${criticalPath.map(n => `Step ${n}`).join(' → ')}`));
-      }
     }
     
     // Copy rules file based on AI provider
@@ -262,50 +310,32 @@ async function buildCommand(options) {
       }
     }
     
-    // Update context
-    recordCommand(context, 'build', options);
-    trackFile(context, `${promptDir}/workflow/code-run.md`, 'buildCreated');
-    trackFile(context, `${promptDir}/workflow/Instructions/`, 'buildCreated');
-    updateWorkflowPhase(context, 'development');
-    
-    // Update context with complex mode info
-    context.complexMode = complexMode;
-    context.modules = selectedModules;
-    context.development.totalSteps = steps.length;
-    
-    // Mark AI files as created
-    if (foundFiles['implementation-plan.md']) trackFile(context, 'implementation-plan.md', 'cursorCreated');
-    if (foundFiles['spec.md']) trackFile(context, 'spec.md', 'cursorCreated');
-    if (foundFiles['project-request.md']) trackFile(context, 'project-request.md', 'cursorCreated');
-    
-    saveContext(context, outputDir, aiProviderKey);
+    // Generate Cursor MDC rules when applicable
+    if (aiProviderKey === 'cursor') {
+      await generateCursorMdcRules(outputDir);
+    }
     
     // Summary
     console.log(chalk.green.bold('\n✨ Build complete!\n'));
     console.log(chalk.cyan('📦 Generated files:'));
-    console.log(chalk.white(`  ✓ ${promptDir}/workflow/code-run.md`));
-    console.log(chalk.white(`  ✓ ${promptDir}/workflow/Instructions/ (${steps.length} files)`));
-    if (complexMode) {
-      console.log(chalk.white(`  ✓ ${promptDir}/workflow/dependency-graph.md`));
-      if (selectedModules.length > 0) {
-        console.log(chalk.white(`  ✓ ${promptDir}/workflow/master-code-run.md`));
-        console.log(chalk.white(`  ✓ ${promptDir}/modules/ (${selectedModules.length} modules)`));
-      }
+    console.log(chalk.white(`  ✓ ${promptDir}/workflow.md`));
+    console.log(chalk.white(`  ✓ ${promptDir}/steps/ (${steps.length} fichiers)`));
+    console.log(chalk.white(`  ✓ ${promptDir}/tasks.json`));
+    
+    if (complexMode && agentSummary && agentSummary.modules && agentSummary.modules.length > 0) {
+      console.log(chalk.white(`  ✓ ${promptDir}/rules/ (${agentSummary.modules.length} modules)`));
+      console.log(chalk.gray(`    Modules: ${agentSummary.modules.join(', ')}`));
     }
     if (foundFiles['ai-rules.md']) {
       console.log(chalk.white(`  ✓ ${provider.rulesFile} (${provider.name})`));
     }
     
     console.log(chalk.cyan('\n📋 Next steps:'));
-    console.log(chalk.white(`  1. Open ${promptDir}/workflow/code-run.md`));
-    console.log(chalk.white(`  2. Review ${promptDir}/workflow/Instructions/instructions-step1.md`));
-    if (complexMode) {
-      console.log(chalk.white(`  3. Check dependency-graph.md for step dependencies`));
-      console.log(chalk.white(`  4. Use 'prompt-cursor context --dashboard' for progress`));
-    } else {
-      console.log(chalk.white('  3. Customize the TODOs for your project'));
-    }
-    console.log(chalk.white(`  ${complexMode ? '5' : '4'}. Start development! 🚀\n`));
+    console.log(chalk.white(`  1. Open ${promptDir}/workflow.md`));
+    console.log(chalk.white(`  2. Run: prompt-cursor agents:next --copy`));
+    console.log(chalk.white(`  3. Paste prompt in your IDE (Cursor, Claude Code, etc.)`));
+    console.log(chalk.white(`  4. Run: prompt-cursor agents:complete --step 1`));
+    console.log(chalk.white(`  5. Repeat! 🚀\n`));
     
     // Show complexity recommendation
     if (complexity && !complexMode && complexity.level !== 'simple') {
@@ -327,84 +357,5 @@ async function buildCommand(options) {
   }
 }
 
-/**
- * Generate dependency graph markdown content
- */
-function generateDependencyGraphMarkdown(depGraph, steps) {
-  const lines = [];
-  
-  lines.push('# 🔗 Dependency Graph\n');
-  lines.push('This document shows the dependencies between steps.\n');
-  lines.push('---\n');
-  
-  // Mermaid diagram
-  lines.push('## Visual Graph\n');
-  lines.push(depGraph.toMermaid());
-  lines.push('');
-  
-  // Critical path
-  lines.push('## 🎯 Critical Path\n');
-  const criticalPath = depGraph.getCriticalPath();
-  lines.push(`The longest dependency chain: **${criticalPath.length} steps**\n`);
-  lines.push(criticalPath.map(n => {
-    const step = steps.find(s => s.number === n);
-    return `${n}. ${step ? step.name : `Step ${n}`}`;
-  }).join(' → ') + '\n');
-  
-  // Step details
-  lines.push('## 📋 Step Dependencies\n');
-  lines.push('| Step | Name | Depends On | Can Parallel |');
-  lines.push('|------|------|------------|--------------|');
-  
-  for (const step of steps) {
-    const deps = step.dependsOn && step.dependsOn.length > 0 
-      ? step.dependsOn.map(d => `Step ${d}`).join(', ')
-      : 'None';
-    const parallel = step.parallel ? '✅ Yes' : '❌ No';
-    lines.push(`| ${step.number} | ${step.name} | ${deps} | ${parallel} |`);
-  }
-  
-  lines.push('');
-  
-  // Available steps (what can run now)
-  lines.push('## ⚡ Parallel Execution Guide\n');
-  lines.push('Steps that can run in parallel after completing their dependencies:\n');
-  
-  const parallelGroups = findParallelGroups(steps);
-  for (const [afterStep, parallelSteps] of Object.entries(parallelGroups)) {
-    if (parallelSteps.length > 1) {
-      lines.push(`\n**After Step ${afterStep}:**`);
-      parallelSteps.forEach(s => {
-        lines.push(`- Step ${s.number}: ${s.name}`);
-      });
-    }
-  }
-  
-  lines.push('');
-  
-  return lines.join('\n');
-}
-
-/**
- * Find groups of steps that can run in parallel
- */
-function findParallelGroups(steps) {
-  const groups = {};
-  
-  for (const step of steps) {
-    if (step.dependsOn && step.dependsOn.length > 0) {
-      // Group by the maximum dependency
-      const maxDep = Math.max(...step.dependsOn);
-      if (!groups[maxDep]) groups[maxDep] = [];
-      groups[maxDep].push(step);
-    } else {
-      // No dependencies - can start immediately
-      if (!groups[0]) groups[0] = [];
-      groups[0].push(step);
-    }
-  }
-  
-  return groups;
-}
 
 module.exports = buildCommand;

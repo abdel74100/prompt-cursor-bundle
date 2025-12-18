@@ -3,7 +3,6 @@ const chalk = require('chalk');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const { loadContext, saveContext, recordCommand, trackFile, updateWorkflowPhase } = require('../utils/contextTrackerV2');
 const { ensureDirectoryStructure, getFilePath, getDirs } = require('../utils/directoryManager');
 const { generateVersionsSection } = require('../utils/versionCompatibility');
 const { getProvider, getProviderChoices, getPromptDirectory } = require('../utils/aiProviders');
@@ -230,31 +229,16 @@ async function generateCommand(options) {
     
     console.log('');
       
-    // Load/update context
-    const context = await loadContext(outputDir, aiProvider);
-    context.projectName = projectName;
-    context.outputDir = outputDir;
-    context.aiProvider = aiProvider;
-    context.workflow.type = 'generate';
-    context.complexMode = complexMode;
-    context.modules = selectedModules;
-    recordCommand(context, 'generate', options);
-    trackFile(context, `${promptDir}/prompts/prompt-generate.md`, 'generated');
-    updateWorkflowPhase(context, 'prompt');
-    saveContext(context, outputDir, aiProvider);
-    
-    // Save project config for complex mode
-    if (complexMode) {
-      const configPath = path.join(outputDir, promptDir, 'project-config.json');
-      const config = {
-        projectName,
-        complexMode: true,
-        modules: selectedModules,
-        aiProvider,
-        createdAt: new Date().toISOString()
-      };
-      await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    }
+    // Save unified project config
+    const configPath = path.join(outputDir, promptDir, 'config.json');
+    const config = {
+      projectName,
+      aiProvider,
+      complexMode: complexMode || false,
+      modules: selectedModules,
+      createdAt: new Date().toISOString()
+    };
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
       
     // Instructions
     console.log(chalk.cyan.bold('📋 Next Steps:\n'));

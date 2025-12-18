@@ -4,12 +4,15 @@ const path = require('path');
  * AI Providers Configuration
  * Defines rules file names and locations for each AI assistant
  */
+// Universal AI directory - same for all providers
+const AI_DIRECTORY = '.ai';
+
 const AI_PROVIDERS = {
   cursor: {
     name: 'Cursor',
     rulesFile: '.cursorrules',
     rulesLocation: 'root',
-    directory: '.prompt-cursor',
+    directory: AI_DIRECTORY,
     description: 'Cursor AI IDE',
     icon: '🎯'
   },
@@ -17,7 +20,7 @@ const AI_PROVIDERS = {
     name: 'Claude',
     rulesFile: 'CLAUDE.md',
     rulesLocation: 'root',
-    directory: '.prompt-claude',
+    directory: AI_DIRECTORY,
     description: 'Anthropic Claude (claude.ai)',
     icon: '🤖'
   },
@@ -25,7 +28,7 @@ const AI_PROVIDERS = {
     name: 'Windsurf',
     rulesFile: '.windsurfrules',
     rulesLocation: 'root',
-    directory: '.prompt-windsurf',
+    directory: AI_DIRECTORY,
     description: 'Windsurf AI IDE',
     icon: '🏄'
   },
@@ -33,7 +36,7 @@ const AI_PROVIDERS = {
     name: 'GitHub Copilot',
     rulesFile: 'copilot-instructions.md',
     rulesLocation: '.github',
-    directory: '.prompt-copilot',
+    directory: AI_DIRECTORY,
     description: 'GitHub Copilot',
     icon: '🐙'
   }
@@ -111,14 +114,16 @@ function getPromptDirectory(providerName) {
  * @returns {Object} Directory paths
  */
 function getProviderDirs(providerName) {
-  const baseDir = getPromptDirectory(providerName);
+  const baseDir = AI_DIRECTORY;
   return {
     ROOT: baseDir,
     PROMPTS: path.join(baseDir, 'prompts'),
     DOCS: path.join(baseDir, 'docs'),
+    STEPS: path.join(baseDir, 'steps'),
+    RULES: path.join(baseDir, 'rules'),
+    // Legacy paths for backward compatibility
     WORKFLOW: path.join(baseDir, 'workflow'),
-    INSTRUCTIONS: path.join(baseDir, 'workflow', 'Instructions'),
-    CONTEXT: path.join(baseDir, `.${providerName}-context.json`)
+    INSTRUCTIONS: path.join(baseDir, 'workflow', 'Instructions')
   };
 }
 
